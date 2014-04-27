@@ -53,10 +53,19 @@
   np-parse-fail-token
 
   ;; handy syntactic stuff
-  with-implicit with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote)
+  with-implicit with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote
+  list-head)
 
 (require racket/fixnum (for-syntax racket/fixnum))
 (require syntax/srcloc)
+(require (for-syntax syntax/stx))
+
+(define list-head
+  (lambda (ls n)
+    (let loop ([ls ls] [n n])
+      (if (= n 0)
+          (list (car ls))
+          (cons (car ls) (loop (cdr ls) (- n 1)))))))
 
 (define-syntax datum
   (syntax-rules ()
@@ -340,12 +349,12 @@
       [(_ ls-expr () e0 e1 ...) #'(begin ls-expr e0 e1 ...)]
       [(_ ls-expr ([set pred] ...) e0 e1 ...)
        (with-syntax ([(pred ...) 
-                       (let f ([preds #'(pred ...)])
-                         (if (null? (cdr preds))
-                             (if (free-identifier=? (car preds) #'otherwise)
-                                 (list #'(lambda (x) #t))
-                                 preds)
-                             (cons (car preds) (f (cdr preds)))))])
+                      (let f ([preds #'(pred ...)])
+                        (if (stx-null? (stx-cdr preds))
+                            (if (free-identifier=? (stx-car preds) #'otherwise)
+                                (list #'(lambda (x) #t))
+                                preds)
+                            (cons (stx-car preds) (f (stx-cdr preds)))))])
          #'(let-values ([(set ...)
                           (let f ([ls ls-expr])
                             (if (null? ls)

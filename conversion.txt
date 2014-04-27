@@ -1,0 +1,47 @@
+syntax-violation -> raise-syntax-error
+fx=? -> fx=
+for-all -> andmap
+memp -> memf
+fold-right -> foldr
+(fold-left (lambda (a item ...) body0 body1 ...) a-arg ls0 ls1 ...) ->
+  (foldl (lambda (item ... a) body0 body1 ...) a-arg ls0 ls1 ...)
+eq-hashtable-ref -> hash-ref
+iota -> range
+list-head -> take
+find -> findf
+exists -> ormap
+tspec-pred-set! -> set-tspec-pred!
+tspec-meta-pred-set! -> set-tspec-meta-pred!
+tspec-tag-set! -> set-tspec-tag!
+tspec-parent?-set! -> set-tspec-parent?!
+fxarithmetic-shift-left -> fxlshift
+language-rtd-set! -> set-language-rtd!
+language-rcd-set! -> set-language-rcd!
+language-tag-mask-set! -> set-language-tag-mask!
+language-pred-set! -> set-language-pred-set!
+ntspec-rtd-set! -> set-ntspec-rtd!
+ntspec-rcd-set! -> set-ntspec-rcd!
+ntspec-unparse-name-set! -> set-ntspec-unparse-name!
+ntspec-parse-name-set! -> set-ntspec-parse-name!
+ntspec-meta-parse-name-set! -> set-ntspec-meta-parse-name!
+ntspec-tag-set! -> set-ntspec-tag!
+ntspec-pred-set! -> set-ntspec-pred!
+ntspec-all-pred-set! -> set-ntspec-all-pred!
+ntspec-all-term-pred-set! -> set-nspec-all-term-pred!
+ntspec-all-tag-set! -> set-ntspec-all-tag!
+ntspec-meta-pred-set! -> set-ntspec-meta-pred!
+pair-alt-rtd-set! -> set-pair-alt-rtd!
+pair-alt-pattern-set! -> set-pair-alt-pattern!
+pair-alt-field-names-set! -> set-pair-alt-field-names!
+pair-alt-field-levels-set! -> set-pair-alt-field-levels!
+pair-alt-field-maybes-set! -> set-pair-alt-field-maybes!
+pair-alt-implicit?-set! -> set-pair-alt-implicit?!
+pair-alt-tag-set! -> set-pair-alt-tag!
+pair-alt-pred-set! -> set-pair-alt-pred!
+pair-alt-maker-set! -> set-pair-alt-maker!
+pair-alt-accessors-set! -> set-pair-alt-accessors!
+terminal-alt-tspec-set! -> set-terminal-alt-tspec!
+nonterminal-alt-ntspec-set! -> set-nonterminal-alt-ntspec!
+construct-id -> find-id
+find -> (require srfi/1)
+partition -> (require racket/list) (or (require srfi/1))
