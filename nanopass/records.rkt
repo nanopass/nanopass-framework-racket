@@ -57,11 +57,11 @@
 (require racket/fixnum)
 (require racket/syntax)
 (require "helpers.rkt" "syntaxconvert.rkt")
-
-(define-nanopass-record)
+(require (for-template racket))
+(require (for-template (only-in "helpers.rkt" define-nanopass-record)))
 
 (define-struct language
-  (name entry-ntspec tspecs ntspecs (tag-mask #:mutable) (pred #:mutable))
+  (name entry-ntspec tspecs ntspecs (tag-mask #:mutable) (record #:mutable) (pred #:mutable))
   #:prefab #:constructor-name $make-language)
 
 (define make-language
@@ -89,7 +89,7 @@
                   (spec-meta-vars test-spec))))))))
     (lambda (name entry-ntspec tspecs ntspecs)
       (check-meta! name tspecs ntspecs)
-      ($make-language name entry-ntspec tspecs ntspecs #f #f #f #f))))
+      ($make-language name entry-ntspec tspecs ntspecs #f #f #f))))
 
 (define-struct tspec 
   (meta-vars type handler (pred #:mutable) (meta-pred #:mutable) (tag #:mutable) (parent? #:mutable))
@@ -365,6 +365,8 @@
             [tspec* (language-tspecs lang)]
             [ntspec* (language-ntspecs lang)]
             [np-bits #f])
+        (set-language-record! lang lang-rec-id)
+        (set-language-pred! lang (format-id id "~a?" lang-rec-id))
         ;; Needs to return #t because it ends up encoded in a field this way
         (define meta?
           (lambda (m)
@@ -481,8 +483,6 @@
                                    (f (cdr alt*) (cons pred pred*)
                                      (if term-pred (cons term-pred term-pred*) term-pred*)
                                      (append new-tag tag)))]))))]))))
-             ; TODO: need to do the proper language pred here.
-             #;(set-language-pred! lang #`(record-predicate '#,lang-rtd))
              (let ([tspec-tag-bits (foldl annotate-tspec! 0 tspec*)])
                (let ([nt-counter (annotate-ntspec*! ntspec*)])
                  (let ([bits (bitwise-length nt-counter)])
@@ -503,7 +503,9 @@
 
 (define language->lang-records
   (lambda (lang)
-    (let ([ntspecs (language-ntspecs lang)] [tspecs (language-tspecs lang)])
+    (let ([lang-rec-id (language-record lang)]
+          [ntspecs (language-ntspecs lang)]
+          [tspecs (language-tspecs lang)])
       (define alt->lang-record
         (lambda (ntspec alt)
           ; TODO: handle fld and msgs that are lists.
@@ -555,9 +557,7 @@
                       ($maker fld ...))))))))
       (define ntspec->lang-record
         (lambda (ntspec)
-          #f
-          ; TODO: need to actually have the name here.
-          #;#`(define #,(ntspec-pred ntspec) (record-predicate '#,(ntspec-rtd ntspec)))))
+          #`(define-struct (#,(ntspec-name ntspec) #,lang-rec-id) #:prefab)))
       (define ntspecs->lang-records
         (lambda (ntspec*)
           (let f ([ntspec* ntspec*] [ntrec* '()] [altrec* '()])
@@ -574,30 +574,16 @@
                               (g (cdr alt*)
                                 (cons (alt->lang-record ntspec alt) altrec*))
                               (g (cdr alt*) altrec*))))))))))
-      (define ntspecs->indirect-id*
-        (lambda (ntspec*)
-          (let f ([ntspec* ntspec*] [id* '()])
-            (if (null? ntspec*)
-                id*
-                (let ([ntspec (car ntspec*)])
-                  (let g ([alt* (ntspec-alts ntspec)] [id* id*])
-                    (if (null? alt*)
-                        (f (cdr ntspec*) (cons (ntspec-pred ntspec) id*))
-                        (g (cdr alt*)
-                          (let ([alt (car alt*)])
-                            (if (pair-alt? alt)
-                                (list* (pair-alt-pred alt)
-                                  (pair-alt-maker alt)
-                                  (append (pair-alt-accessors alt) id*))
-                                id*))))))))))
+
       (with-syntax ([((ntrec ...) (altrec ...))
-                     (ntspecs->lang-records (language-ntspecs lang))]
-                    [lang-id (language-name lang)]
-                    [(indirect-id* ...) (ntspecs->indirect-id* (language-ntspecs lang))])
-        #`(ntrec ...  altrec ...  (indirect-export lang-id indirect-id* ...))))))
+                     (ntspecs->lang-records ntspecs)])
+          #`((define-nanopass-record)
+             (define-struct (#,lang-rec-id nanopass-record) () #:prefab)
+             ntrec ...
+             altrec ...)))))
 
 (define language->lang-predicates
-  (lambda (desc)
+  (lambda (desc id)
     (let ([name (language-name desc)])
       (let loop ([ntspecs (language-ntspecs desc)] [nt?* '()] [term?* '()])
         (if (null? ntspecs)

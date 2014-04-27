@@ -4,12 +4,15 @@
 
 (provide make-unparser)
 
+(require syntax/stx)
 (require "helpers.rkt")
 (require "records.rkt")
 (require "syntaxconvert.rkt") 
+
+(require (for-template racket))
   
 (define make-unparser
-  (lambda (desc)
+  (lambda (desc id)
     (let* ([lang-name (language-name desc)]
            [ntspecs (language-ntspecs desc)]
            [tspecs (language-tspecs desc)])
@@ -21,18 +24,19 @@
                        (map (lambda (ntspec procname)
                               (make-unparse-proc
                                 tspecs ntspecs ntspec procname))
-                         ntspecs #'(proc-name ...))])
-          #`(rec f (case-lambda
-                     [(ir) (f ir #f)]
-                     [(ir raw?)
-                      (define proc-name proc) ...
-                      (cond
-                        [(ntspec? ir) (proc-name ir)] ...
-                        ; TODO: should be calling the prettify function on these potentially
-                        [(tspec? ir) tspec-body] ...
-                        [else (error '#,lang-name
-                                "unrecognized language record"
-                                ir)])])))))))
+                         ntspecs (stx->list #'(proc-name ...)))])
+          #`(letrec ([f (case-lambda
+                          [(ir) (f ir #f)]
+                          [(ir raw?)
+                           (letrec ([proc-name proc] ...)
+                             (cond
+                               [(ntspec? ir) (proc-name ir)] ...
+                               ; TODO: should be calling the prettify function on these potentially
+                               [(tspec? ir) tspec-body] ...
+                               [else (error '#,lang-name
+                                       "unrecognized language record"
+                                       ir)]))])])
+              f))))))
 
 (define make-unparse-term-clause-body
   (lambda (tspec)
