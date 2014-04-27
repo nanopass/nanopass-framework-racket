@@ -1,3 +1,10 @@
+NOTE
+=====
+
+This is an _INCOMPLETE_ port of the nanopass framework to Racket.  I am hoping over the next month or so to find enough time to get this port completed, but it is a tight schedule to make the changes I want to make.
+
+-andy keep:)
+
 Nanopass Compiler Library
 ==========================
 
