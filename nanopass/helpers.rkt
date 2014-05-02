@@ -7,20 +7,34 @@
   extends definitions entry terminals nongenerative-id
 
   ;; predicates for looking for identifiers independent of context
-  ellipsis? unquote? colon? arrow? plus? minus? double-arrow? 
+  (contract-out
+    [ellipsis? (-> any/c boolean?)]
+    [unquote? (-> any/c boolean?)]
+    [colon? (-> any/c boolean?)]
+    [arrow? (-> any/c boolean?)]
+    [plus? (-> any/c boolean?)]
+    [minus? (-> any/c boolean?)]
+    [double-arrow? (-> any/c boolean?)])
     
   ;; things for dealing with syntax and idetnfieris
-  all-unique-identifiers? gentemp bound-id-member? bound-id-union
-  partition-syn datum 
+  (contract-out
+    [all-unique-identifiers? (-> (listof syntax?) boolean?)]
+    [gentemp (-> identifier?)]
+    [bound-id-member? (-> identifier? (listof identifier?) boolean?)]
+    [bound-id-union (-> (listof identifier?) (listof identifier?) (listof identifier?))])
+  partition-syn datum
 
   ;; things for dealing with language meta-variables
-  meta-var->raw-meta-var combine unique-symbol 
+  (contract-out
+    [meta-var->raw-meta-var (-> symbol? symbol?)]
+    [combine (-> list? any/c list?)]
+    [unique-symbol (-> identifier? #:rest (listof identifier?) symbol?)])
     
   ;; convenience syntactic forms
   rec with-values define-who 
     
   ;; source information funtions
-  syntax->source-info 
+  (contract-out [syntax->source-info (-> syntax? string?)])
 
   ;;; stuff imported from implementation-helpers
 
@@ -44,17 +58,20 @@
   trace-lambda trace-define-syntax trace-let trace-define
           
   ;; needed to know what code to generate
-  optimize-level
+  (contract-out
+    [optimize-level (->case
+                      (-> (integer-in 0 3))
+                      (-> (integer-in 0 3) any))])
 
   ;; the base record, so that we can use gensym syntax
   define-nanopass-record
 
   ;; failure token so that we can know when parsing fails with a gensym
-  np-parse-fail-token
+  (contract-out [np-parse-fail-token (and/c symbol? (not/c symbol-interned?))])
 
   ;; handy syntactic stuff
   with-implicit with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote
-  list-head)
+  (contract-out [list-head (-> list? exact-nonnegative-integer? list?)]))
 
 (require racket/fixnum (for-syntax racket/fixnum))
 (require syntax/srcloc)
@@ -64,7 +81,7 @@
   (lambda (ls n)
     (let loop ([ls ls] [n n])
       (if (= n 0)
-          (list (car ls))
+          '()
           (cons (car ls) (loop (cdr ls) (- n 1)))))))
 
 (define-syntax datum
@@ -92,60 +109,60 @@
         (let f ([body body] [t* '()] [e* '()])
           (syntax-case body (unquote unquote-splicing)
             [(unquote x)
-              (identifier? #'x)
-              (values body (cons #'x t*) (cons #'x e*))]
+             (identifier? #'x)
+             (values body (cons #'x t*) (cons #'x e*))]
             [(unquote-splicing x)
-              (identifier? #'x)
-              (values body (cons #'x t*) (cons #'x e*))]
+             (identifier? #'x)
+             (values body (cons #'x t*) (cons #'x e*))]
             [(unquote e)
-              (with-syntax ([(t) (generate-temporaries '(t))])
+             (with-syntax ([(t) (generate-temporaries '(t))])
                 (values #'(unquote t) (cons #'t t*) (cons #'e e*)))]
             [(unquote-splicing e)
-              (with-syntax ([(t) (generate-temporaries '(t))])
-                (values #'(unquote-splicing t) (cons #'t t*) (cons #'e e*)))]
+             (with-syntax ([(t) (generate-temporaries '(t))])
+               (values #'(unquote-splicing t) (cons #'t t*) (cons #'e e*)))]
             [(tmpl0 . tmpl1)
-              (let-values ([(tmpl0 t* e*) (f #'tmpl0 t* e*)])
-                (let-values ([(tmpl1 t* e*) (f #'tmpl1 t* e*)])
-                  (values #`(#,tmpl0 . #,tmpl1) t* e*)))]
+             (let-values ([(tmpl0 t* e*) (f #'tmpl0 t* e*)])
+               (let-values ([(tmpl1 t* e*) (f #'tmpl1 t* e*)])
+                 (values #`(#,tmpl0 . #,tmpl1) t* e*)))]
             [atom (values #'atom t* e*)]))))
     (define build-list
       (lambda (body orig-level)
         (let loop ([body body] [level orig-level])
           (syntax-case body (unquote unquote-splicing)
             [(tmpl0 ... (unquote e))
-              (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
-                (cond
-                  [(fx= level 0) #'(tmpl0 ... (unquote e))]
-                  [(fx= level 1) #'(tmpl0 ... (unquote-splicing e))]
-                  [else (let loop ([level level] [e #'e])
-                          (if (fx= level 1)
-                              #`(tmpl0 ... (unquote-splicing #,e))
-                              (loop (fx- level 1) #`(apply append #,e))))]))]
+             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
+               (cond
+                 [(fx= level 0) #'(tmpl0 ... (unquote e))]
+                 [(fx= level 1) #'(tmpl0 ... (unquote-splicing e))]
+                 [else (let loop ([level level] [e #'e])
+                         (if (fx= level 1)
+                             #`(tmpl0 ... (unquote-splicing #,e))
+                             (loop (fx- level 1) #`(apply append #,e))))]))]
             [(tmpl0 ... (unquote-splicing e))
-              (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
-                (cond
-                  [(fx= level 0) #'(tmpl0 ... (unquote-splicing e))]
-                  [else (let loop ([level level] [e #'e])
-                          (if (fx= level 0)
-                              #`(tmpl0 ... (unquote-splicing #,e))
-                              (loop (fx- level 1) #`(apply append #,e))))]))]
+             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
+               (cond
+                 [(fx= level 0) #'(tmpl0 ... (unquote-splicing e))]
+                 [else (let loop ([level level] [e #'e])
+                         (if (fx= level 0)
+                             #`(tmpl0 ... (unquote-splicing #,e))
+                             (loop (fx- level 1) #`(apply append #,e))))]))]
             [(tmpl0 ... tmpl1 ellipsis)
-              (eq? (syntax->datum #'ellipsis) '...)
-              (loop #'(tmpl0 ... tmpl1) (fx+ level 1))]
+             (eq? (syntax->datum #'ellipsis) '...)
+             (loop #'(tmpl0 ... tmpl1) (fx+ level 1))]
             [(tmpl0 ... tmpl1)
-              (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
-                (let-values ([(tmpl1 t* e*) (gather-unquoted-exprs #'tmpl1)])
-                  (when (null? e*)
-                    (raise-syntax-error 'extended-quasiquote
-                      "no variables found in ellipsis expression" body))
-                  (let loop ([level level]
-                              [e #`(map (lambda #,t*
-                                          (extended-quasiquote
-                                            #,tmpl1))
-                                     . #,e*)])
-                    (if (fx= level 1)
-                        #`(tmpl0 ... (unquote-splicing #,e))
-                        (loop (fx- level 1) #`(apply append #,e))))))]))))
+             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
+               (let-values ([(tmpl1 t* e*) (gather-unquoted-exprs #'tmpl1)])
+                 (when (null? e*)
+                   (raise-syntax-error 'extended-quasiquote
+                     "no variables found in ellipsis expression" body))
+                 (let loop ([level level]
+                             [e #`(map (lambda #,t*
+                                         (extended-quasiquote
+                                           #,tmpl1))
+                                    . #,e*)])
+                   (if (fx= level 1)
+                       #`(tmpl0 ... (unquote-splicing #,e))
+                       (loop (fx- level 1) #`(apply append #,e))))))]))))
     (define rebuild-body
       (lambda (body level)
         (syntax-case body (unquote unquote-splicing)
@@ -197,15 +214,15 @@
                                   (let f ([b b])
                                     (syntax-case b ()
                                       [id (identifier? #'id)
-                                        (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
-                                            #'(unquote id)
-                                            #'id)]
+                                       (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
+                                           #'(unquote id)
+                                           #'id)]
                                       [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) #'(a . d))]
                                       [atom #'atom])))))
                             (syntax-case x ()
                               [(_ b)
-                                (with-syntax ([b (replace-vars #'b)])
-                                  #'`b)]))])
+                               (with-syntax ([b (replace-vars #'b)])
+                                 #'`b)]))])
              . body))])))
 
 (define all-unique-identifiers?
