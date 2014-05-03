@@ -2,7 +2,8 @@
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for detatils
 
-(provide convert-pattern)
+(provide/contract
+  [convert-pattern (-> syntax? (values (or/c symbol? vector? list?) (listof identifier?) (listof exact-nonnegative-integer?) (listof boolean?)))])
 
 (require racket/fixnum)
 (require "helpers.rkt")

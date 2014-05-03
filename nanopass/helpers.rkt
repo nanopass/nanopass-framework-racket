@@ -28,7 +28,7 @@
   (contract-out
     [meta-var->raw-meta-var (-> symbol? symbol?)]
     [combine (-> list? any/c list?)]
-    [unique-symbol (-> identifier? #:rest (listof identifier?) symbol?)])
+    [unique-symbol (->* (identifier?) () #:rest (listof identifier?) symbol?)])
     
   ;; convenience syntactic forms
   rec with-values define-who 
@@ -59,7 +59,7 @@
           
   ;; needed to know what code to generate
   (contract-out
-    [optimize-level (->case
+    [optimize-level (case->
                       (-> (integer-in 0 3))
                       (-> (integer-in 0 3) any))])
 

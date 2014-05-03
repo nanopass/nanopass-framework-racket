@@ -7,6 +7,7 @@
   output-records->syntax parse-cata)
 
 (require racket/syntax)
+(require syntax/stx)
 (require "helpers.rkt")
 (require "records.rkt")
 (require "syntaxconvert.rkt")
@@ -111,14 +112,15 @@
           (let ([field-pats (pair-alt-pattern alt)])
             (with-syntax ([(field-var ...) (pair-alt-field-names alt)])
               (with-syntax ([(parsed-field ...)
-                             (map parse-field #'(field-var ...)
+                             (map parse-field
+                               (syntax->list #'(field-var ...))
                                (pair-alt-field-levels alt)
                                (pair-alt-field-maybes alt))])
                 #`(#,(if (pair-alt-implicit? alt)
                          #`(meta-syntax-dispatch
                              #,stx '#,(datum->syntax #'lang-name field-pats))
                          #`(and (eq? (syntax->datum #,first-stx)
-                                  '#,(car (alt-syn alt)))
+                                  '#,(stx-car (alt-syn alt)))
                                 (meta-syntax-dispatch #,rest-stx
                                   '#,(datum->syntax #'lang-name field-pats))))
                     => (lambda (ls)

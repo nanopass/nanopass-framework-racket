@@ -285,7 +285,7 @@
                  (f #'rest base-lang found-entry
                    entry-ntspec
                    (if first-ntspec first-ntspec #'ntspec)
-                   terms (cons (cons* #'ntspec #'(meta* ...) #'a #'(a* ...)) ntspecs))]
+                   terms (cons (cons* #'ntspec (stx->list #'(meta* ...)) #'a #'(a* ...)) ntspecs))]
                 [(x . rest) (raise-syntax-error 'define-language "unrecognized clause" #'x)]
                 [x (raise-syntax-error 'define-language
                      "unrecognized rest of language clauses" #'x)]))))
@@ -322,7 +322,7 @@
     (define extract-terminal-metas
       (lambda (tspecs)
         (foldl (lambda (tspec metas)
-                 (append (syntax->datum (tspec-meta-vars tspec)) metas))
+                 (append (map syntax->datum (tspec-meta-vars tspec)) metas))
           '() tspecs)))
 
     (define finish 
