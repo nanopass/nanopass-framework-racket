@@ -1,7 +1,11 @@
+#lang racket
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for detatils
 
-(import (rnrs) (tests compiler-test) (tests helpers) (tests unit-tests) (nanopass helpers))
+(require "tests/compiler-test.rkt")
+(require "tests/helpers.rkt")
+(require "tests/unit-tests.rkt")
+(require "nanopass/helpers.rkt")
 
 (printf "Running unit tests\n")
 (run-unit-tests)

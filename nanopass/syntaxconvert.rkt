@@ -3,9 +3,10 @@
 ;;; See the accompanying file Copyright for detatils
 
 (provide/contract
-  [convert-pattern (-> syntax? (values (or/c symbol? vector? list?) (listof identifier?) (listof exact-nonnegative-integer?) (listof boolean?)))])
+  [convert-pattern (-> syntax? (values (or/c symbol? vector? pair? null?) (listof identifier?) (listof exact-nonnegative-integer?) (listof boolean?)))])
 
 (require racket/fixnum)
+(require syntax/stx)
 (require "helpers.rkt")
 
 (define convert-pattern
@@ -25,22 +26,22 @@
             (values 'any (cons p flds) (cons n lvls) (cons #f maybes))
             (syntax-case p ()
               [(x dots)
-                (ellipsis? (syntax dots))
-                (let-values ([(p flds lvls maybes) (cvt (syntax x) (fx+ n 1) flds lvls maybes)])
-                  (values (if (eq? p 'any) 'each-any (vector 'each p)) flds lvls maybes))]
+               (ellipsis? #'dots)
+               (let-values ([(p flds lvls maybes) (cvt #'x (fx+ n 1) flds lvls maybes)])
+                 (values (if (eq? p 'any) 'each-any (vector 'each p)) flds lvls maybes))]
               [(x dots y ... . z) 
-                (ellipsis? (syntax dots))
-                (let-values ([(z flds lvls maybes) (cvt (syntax z) n flds lvls maybes)])
-                  (let-values ([(y flds lvls maybes) (cvt* (syntax (y ...)) n flds lvls maybes)])
-                    (let-values ([(x flds lvls maybes) (cvt (syntax x) (fx+ n 1) flds lvls maybes)])
-                      (values `#(each+ ,x ,(reverse y) ,z) flds lvls maybes))))]
+               (ellipsis? #'dots)
+               (let-values ([(z flds lvls maybes) (cvt #'z n flds lvls maybes)])
+                 (let-values ([(y flds lvls maybes) (cvt* (stx->list #'(y ...)) n flds lvls maybes)])
+                   (let-values ([(x flds lvls maybes) (cvt #'x (fx+ n 1) flds lvls maybes)])
+                     (values `#(each+ ,x ,(reverse y) ,z) flds lvls maybes))))]
               [(maybe x)
-                (and (identifier? #'x) (eq? (datum maybe) 'maybe))
-                (values 'any (cons #'x flds) (cons n lvls) (cons #t maybes))]
+               (and (identifier? #'x) (eq? (datum maybe) 'maybe))
+               (values 'any (cons #'x flds) (cons n lvls) (cons #t maybes))]
               [(x . y)
-                (let-values ([(y flds lvls maybes) (cvt (syntax y) n flds lvls maybes)])
-                  (let-values ([(x flds lvls maybes) (cvt (syntax x) n flds lvls maybes)])
-                    (values (cons x y) flds lvls maybes)))]
+               (let-values ([(y flds lvls maybes) (cvt #'y n flds lvls maybes)])
+                 (let-values ([(x flds lvls maybes) (cvt #'x n flds lvls maybes)])
+                   (values (cons x y) flds lvls maybes)))]
               [() (values '() flds lvls maybes)]
               [oth (raise-syntax-error 'cvt "unable to find match" #'oth)]))))
     (cvt pattern 0 '() '() '())))

@@ -342,7 +342,7 @@
                          #;(define-property #,lang meta-parser-property meta-parser)
                          (define-who unparser-name unparser)
                          (void))])
-            #;(pretty-print (syntax->datum stx))
+            (pretty-print (syntax->datum stx))
             stx))))
 
     (syntax-case x ()

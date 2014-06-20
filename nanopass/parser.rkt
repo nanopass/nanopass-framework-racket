@@ -9,6 +9,7 @@
 (require (for-syntax "records.rkt"))
 (require (for-syntax "syntaxconvert.rkt"))
 (require (for-syntax "nano-syntax-dispatch.rkt"))
+(require (for-syntax syntax/stx))
 
 (define-syntax parse-or
   (syntax-rules (on-error)
@@ -69,14 +70,17 @@
               (with-syntax ([maker (pair-alt-maker alt)]
                             [(field-var ...) (pair-alt-field-names alt)])
                 (with-syntax ([(parsed-field ...)
-                               (map parse-field #'(field-var ...)
+                               (map parse-field
+                                 (stx->list #'(field-var ...))
                                  (pair-alt-field-levels alt)
                                  (pair-alt-field-maybes alt))]
-                              [(msg ...) (map (lambda (x) #f) #'(field-var ...))])
+                              [(msg ...)
+                               (map (lambda (x) #f)
+                                 (stx->list #'(field-var ...)))])
                   #`(#,(if (pair-alt-implicit? alt)
                            #`(nano-syntax-dispatch
                                s-exp '#,(datum->syntax #'lang-name field-pats))
-                           #`(and (eq? '#,(car (alt-syn alt)) (car s-exp))
+                           #`(and (eq? '#,(stx-car (alt-syn alt)) (car s-exp))
                                   (nano-syntax-dispatch 
                                     (cdr s-exp) 
                                     '#,(datum->syntax #'lang-name field-pats))))

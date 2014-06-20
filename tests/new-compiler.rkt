@@ -1,9 +1,12 @@
+#lang racket
 ;;; Copyright (c) 2000-2013 Andrew W. Keep, R. Kent Dybvig
 ;;; See the accompanying file Copyright for detatils
 
-(library (tests new-compiler)
-  (export L0 parse-L0 unparse-L0)
-  (import (rnrs) (nanopass) (tests helpers))
+(provide L0 parse-L0 unparse-L0)
+
+(require "../nanopass.rkt")
+
+(require "helpers.rkt")
 
 #|
   (compiler-passes '(
@@ -55,48 +58,47 @@
     ))
 |#
 
-  (define vector-for-all
-    (lambda (p? x)
-      (let loop ([n (fx- (vector-length x) 1)])
-        (cond
-          [(fx<? n 0) #t]
-          [(not (p? (vector-ref x n))) #f]
-          [else (loop (fx- n 1))]))))
+(define vector-for-all
+  (lambda (p? x)
+    (let loop ([n (fx- (vector-length x) 1)])
+      (cond
+        [(fx<? n 0) #t]
+        [(not (p? (vector-ref x n))) #f]
+        [else (loop (fx- n 1))]))))
 
-  (define target-fixnum?
-    (lambda (x)
-      (and (integer? x) (exact? x)
-           (<= (- (ash 1 60)) x (- (ash 1 60) 1)))))
+(define target-fixnum?
+  (lambda (x)
+    (and (integer? x) (exact? x)
+         (<= (- (ash 1 60)) x (- (ash 1 60) 1)))))
 
-  (define constant?
-    (lambda (x)
-      (or (eq? x #t) (eq? x #f) (eq? x '()) (target-fixnum? x))))
+(define constant?
+  (lambda (x)
+    (or (eq? x #t) (eq? x #f) (eq? x '()) (target-fixnum? x))))
 
-  (define scheme-object?
-    (lambda (x)
-      (or (constant? x)
-          (and (pair? x) (scheme-object? (car x)) (scheme-object? (cdr x)))
-          (and (vector? x) (vector-for-all scheme-object? x)))))
+(define scheme-object?
+  (lambda (x)
+    (or (constant? x)
+        (and (pair? x) (scheme-object? (car x)) (scheme-object? (cdr x)))
+        (and (vector? x) (vector-for-all scheme-object? x)))))
 
-  (define-language L0
-    (terminals
-      (constant (c))
-      (scheme-object (d))
-      (variable (x))
-      (primitive (pr)))
-    (Expr (e body)
-      c
-      x
-      (quote d)
-      (if e0 e1)
-      (if e0 e1 e2)
-      (and e* ...)
-      (or e* ...)
-      (begin e* ... e)
-      (lambda (x* ...) body body* ...)
-      (let ([x* e*] ...) body body* ...)
-      (letrec ([x* e*] ...) body body* ...)
-      (set! x e)
-      (pr e* ...)
-      (e0 e* ...)))
-  )
+(define-language L0
+  (terminals
+    (constant (c))
+    (scheme-object (d))
+    (variable (x))
+    (primitive (pr)))
+  (Expr (e body)
+    c
+    x
+    (quote d)
+    (if e0 e1)
+    (if e0 e1 e2)
+    (and e* ...)
+    (or e* ...)
+    (begin e* ... e)
+    (lambda (x* ...) body body* ...)
+    (let ([x* e*] ...) body body* ...)
+    (letrec ([x* e*] ...) body body* ...)
+    (set! x e)
+    (pr e* ...)
+    (e0 e* ...)))

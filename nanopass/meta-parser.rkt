@@ -48,7 +48,7 @@
                 (case ntspec-name
                   [(ntspec-id) (parse-name stx #t (not input?) #f)] ...
                   [else (error '#,lang-name
-                          "unrecognized nonterminal passed to meta parser"
+                          "unrecognized nonterminal passed to meta parser ~s"
                           ntspec-name)]))))))))
 
 (define make-meta-pred-defn
@@ -153,9 +153,10 @@
       (syntax->datum nonterm-imp-alt*)
       (syntax->datum nonterm-nonimp-alt*)))
       #`(lambda (stx error? nested? maybe?)
-          (or (syntax-case stx (unquote)
+          (printf "matching: ~s\n" (syntax->datum stx))
+          (or (syntax-case stx ()
                 [(unquote id)
-                 (identifier? #'id)
+                 (and (unquote? #'unquote) (identifier? #'id))
                  (if nested?
                      (make-nano-unquote #'id)
                      (cond
@@ -169,6 +170,7 @@
                        #,@(map (make-nonterm-unquote #'#'id) nonterm-nonimp-alt*)
                        [else #f]))]
                 [(unquote x)
+                 (unquote? #'unquote)
                  (if nested?
                      (if #,cata?
                          (parse-cata #'x '#,(ntspec-name ntspec) maybe?)
@@ -193,8 +195,9 @@
 ;; used to handle output of meta-parsers
 (define meta-parse-term
   (lambda (tname stx cata? maybe?)
-    (syntax-case stx (unquote)
+    (syntax-case stx ()
       [(unquote x)
+       (unquote? #'unquote)
        (if (and cata? (not (identifier? #'x)))
            (parse-cata #'x (tspec-type tname) maybe?)
            (make-nano-unquote #'x))]

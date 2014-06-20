@@ -6,7 +6,7 @@
   nonterm-id->ntspec define-nanopass-record
   (contract-out
     [find-spec (-> identifier? language? (or/c tspec? ntspec?))]
-    [nonterminal-meta? (-> identifier? (listof ntspec?) (or/c false/c (listof identifier?)))]
+    [nonterminal-meta? (-> identifier? (listof ntspec?) boolean?)]
     [nano-alt->ntspec (-> alt? (listof ntspec?) any)]
     [nonterm-id->ntspec? (-> identifier? (listof ntspec?) (or/c ntspec? false/c))]
     [id->spec (-> identifier? language? (or/c tspec? ntspec? false/c))]
@@ -15,9 +15,9 @@
     [meta-name->tspec (-> identifier? (listof tspec?) (or/c false/c tspec?))]
     [meta-name->ntspec (-> identifier? (listof ntspec?) (or/c false/c ntspec?))]
 
-    [make-nano-dots (-> syntax? nano-dots?)]
+    [make-nano-dots (-> any/c nano-dots?)]
     [nano-dots? (-> any/c boolean?)]
-    [nano-dots-x (-> nano-dots? syntax?)]
+    [nano-dots-x (-> nano-dots? any/c)]
 
     [make-nano-quote (-> syntax? nano-quote?)]
     [nano-quote? (-> any/c boolean?)]
@@ -27,14 +27,14 @@
     [nano-unquote? (-> any/c boolean?)]
     [nano-unquote-x (-> nano-unquote? syntax?)]
 
-    [make-nano-meta (-> alt? (listof (or/c nano-dots? nano-quote? nano-unquote? nano-cata? nano-meta?)) nano-meta?)]
+    [make-nano-meta (-> alt? (listof (or/c nano-dots? nano-quote? nano-unquote? nano-cata? nano-meta? list?)) nano-meta?)]
     [nano-meta? (-> any/c boolean?)]
     [nano-meta-alt (-> nano-meta? alt?)]
     [nano-meta-fields (-> nano-meta?
                           (listof
                             (or/c nano-dots? nano-quote?
                               nano-unquote? nano-cata?
-                              nano-meta?)))]
+                              nano-meta? list?)))]
 
     [make-nano-cata (-> identifier? syntax? 
                         (or/c false/c syntax?)
@@ -51,14 +51,14 @@
     [make-language (-> identifier? (or/c false/c identifier?) (listof tspec?) (listof ntspec?) language?)]
     [language? (-> any/c boolean?)]
     [language-name (-> language? identifier?)]
-    [language-entry-ntspec (-> language? (or/c false/c ntspec?))]
+    [language-entry-ntspec (-> language? (or/c false/c identifier?))]
     [language-tspecs (-> language? (listof tspec?))]
     [language-ntspecs (-> language? (listof ntspec?))]
     [language-tag-mask (-> language? (or/c false/c exact-nonnegative-integer?))]
 
     [make-tspec (case->
                   (-> identifier? (listof identifier?) tspec?)
-                  (-> identifier? (listof identifier?) syntax? tspec?))]
+                  (-> identifier? (listof identifier?) (or/c false/c syntax?) tspec?))]
     [tspec? (-> any/c boolean?)]
     [tspec-type (-> tspec? identifier?)]
     [tspec-meta-vars (-> tspec? (listof identifier?))]
@@ -90,7 +90,7 @@
 
     [make-pair-alt (-> syntax? (or/c false/c syntax?) boolean? pair-alt?)]
     [pair-alt? (-> any/c boolean?)]
-    [pair-alt-pattern (-> pair-alt? (or/c false/c symbol? vector? list?))]
+    [pair-alt-pattern (-> pair-alt? (or/c false/c symbol? vector? pair? null?))]
     [pair-alt-field-names (-> pair-alt? (or/c false/c (listof identifier?)))]
     [pair-alt-field-levels (-> pair-alt? (or/c false/c (listof exact-nonnegative-integer?)))]
     [pair-alt-field-maybes (-> pair-alt? (or/c false/c (listof boolean?)))]
@@ -117,7 +117,7 @@
     [annotate-language! (-> language? identifier? any)]
     [language->lang-records (-> language? syntax?)]
     [language->lang-predicates (-> language? identifier? syntax?)]
-    [exists-alt? (-> alt? ntspec? boolean?)]))
+    [exists-alt? (-> alt? ntspec? (or/c false/c alt?))]))
 
 (require racket/fixnum)
 (require racket/syntax)
@@ -267,8 +267,9 @@
 (define nonterminal-meta?
   (lambda (m ntspec*)
     (let ([m (meta-var->raw-meta-var (syntax->datum m))])
-      (ormap (lambda (x) (memq m (map syntax->datum (ntspec-meta-vars x))))
-        ntspec*)))) 
+      (and (ormap (lambda (x) (memq m (map syntax->datum (ntspec-meta-vars x))))
+             ntspec*)
+           #t))))
   
 (define nonterminal-meta->ntspec
   (lambda (meta ntspecs)
@@ -708,6 +709,6 @@
                         (not (pair-alt-implicit? alt))
                         (let ([asyn (alt-syn alt)])
                           (let ([apattern (pair-alt-pattern alt)])
-                            (and (eq? (syntax->datum (car asyn)) (syntax->datum (car syn)))
+                            (and (eq? (syntax->datum (stx-car asyn)) (syntax->datum (stx-car syn)))
                                  (equal? apattern pattern)))))))))]
         [else (error who "unexpected alt" ialt)]))))

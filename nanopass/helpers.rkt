@@ -279,11 +279,15 @@
 ;;; moved from meta-syntax-dispatch.ss and syntaxconvert.ss
 (define ellipsis?
   (lambda (x)
-    (and (identifier? x) (free-identifier=? x (syntax (... ...)))))) 
+    (and (identifier? x)
+         (or (free-identifier=? x (syntax (... ...)))
+             (eq? (syntax->datum x) '...))))) 
 
 (define unquote?
   (lambda (x)
-    (and (identifier? x) (free-identifier=? x (syntax unquote)))))
+    (and (identifier? x)
+         (or (free-identifier=? x (syntax unquote))
+             (eq? (syntax->datum x) 'unquote)))))
 
 (define unquote-splicing?
   (lambda (x)

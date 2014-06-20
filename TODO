@@ -1,5 +1,7 @@
 TODO
 
+Next step on racket: meta-parser is not quite working seems to be parsing: ,d into (quote ,) (quote d) instead of (unquote d)
+
 Support:
 
 1. Create Racket version of the nanopass framework
