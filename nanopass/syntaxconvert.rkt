@@ -1,6 +1,6 @@
 #lang racket
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
-;;; See the accompanying file Copyright for detatils
+;;; See the accompanying file Copyright for details
 
 (provide/contract
   [convert-pattern (-> syntax? (values (or/c symbol? vector? pair? null?) (listof identifier?) (listof exact-nonnegative-integer?) (listof boolean?)))])

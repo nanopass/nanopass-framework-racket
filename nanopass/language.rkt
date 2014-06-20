@@ -1,6 +1,6 @@
 #lang racket
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
-;;; See the accompanying file Copyright for detatils
+;;; See the accompanying file Copyright for details
 
 ;;; Producs are : record defs, parser, meta parser, lang 
 ;;; may need to use meta define meta-parser.

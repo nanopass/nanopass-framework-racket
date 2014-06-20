@@ -1,6 +1,6 @@
 #lang racket
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
-;;; See the accompanying file Copyright for detatils
+;;; See the accompanying file Copyright for details
 
 (provide compose disjoin any every choose reverse-filter fold reduce
   constant? keyword? list-of-user-primitives list-of-system-primitives

@@ -1,6 +1,6 @@
 #lang racket
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
-;;; See the accompanying file Copyright for detatils
+;;; See the accompanying file Copyright for details
 
 (provide make-meta-parser rhs-in-context-quasiquote meta-parse-term
   make-quasiquote-transformer make-in-context-transformer

@@ -1,6 +1,6 @@
 #lang racket
 ;;; Copyright (c) 2000-2013 Andrew W. Keep
-;;; See the accompanying file Copyright for detatils
+;;; See the accompanying file Copyright for details
 
 (provide define-language-node-counter)
 
