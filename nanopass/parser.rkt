@@ -8,8 +8,10 @@
 (require (for-syntax "helpers.rkt"))
 (require (for-syntax "records.rkt"))
 (require (for-syntax "syntaxconvert.rkt"))
-(require (for-syntax "nano-syntax-dispatch.rkt"))
 (require (for-syntax syntax/stx))
+
+(require "nano-syntax-dispatch.rkt")
+(require (only-in "helpers.rkt" define-who np-parse-fail-token))
 
 (define-syntax parse-or
   (syntax-rules (on-error)
@@ -126,6 +128,8 @@
                  [lang-name (language-name desc)]
                  [ntspecs (language-ntspecs desc)]
                  [tspecs (language-tspecs desc)])
+            (when (null? ntspecs)
+              (error 'define-parser "unable to generate parser for language without non-terminals"))
             (with-syntax ([(entry-name parse-name ...)
                            (map ntspec-parse-name ntspecs)]
                           [(entry-proc parse-proc ...)

@@ -617,7 +617,7 @@
                                (syntax->list #'(msg ...))
                                (pair-alt-field-levels alt)
                                (pair-alt-field-maybes alt)))
-                      ($maker fld ...))))))))
+                      ($maker #,(pair-alt-tag alt) fld ...))))))))
       (define ntspec->lang-record
         (lambda (ntspec)
           #`(define-struct (#,(ntspec-record-name ntspec) #,lang-rec-id) () #:prefab)))

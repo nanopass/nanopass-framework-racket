@@ -10,6 +10,9 @@
 (require "syntaxconvert.rkt") 
 
 (require (for-template racket))
+(require
+  (for-template
+    (only-in "helpers.rkt" with-extended-quasiquote with-auto-unquote)))
   
 (define make-unparser
   (lambda (desc id)
