@@ -35,9 +35,9 @@
     (primapp pr e1 ...)
     (app e0 e1 ...)))
 
-(define-struct var (fields sym ref set mset) #:prefab #:constructor-name $make-var)
+(define-struct var (sym ref set mset) #:prefab #:constructor-name $make-var)
 
-(define make-var (lambda (sym) ($var sym #f #f #f)))
+(define make-var (lambda (sym) ($make-var sym #f #f #f)))
 
 (define-language LUNPARSE
   (terminals
@@ -121,7 +121,7 @@
 
     (let ([x.1 (make-var 'x.1)]
            [x.2 (make-var 'x.2)]
-           [y.3 (make-var 'y.2)]
+           [y.3 (make-var 'y.3)]
            [x.4 (make-var 'x.4)]
            [zero?.5 (make-var 'zero?.5)]
            [*.6 (make-var '*.6)]

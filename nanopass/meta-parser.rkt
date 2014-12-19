@@ -343,11 +343,12 @@
 ;; - we are always building the checking version of the pair-alt constructor here, but could probably be avoiding that.
 (define output-records->syntax
   (lambda (pass-name ntname omrec ometa-parser rhs-rec)
+    ;; TODO: add 'near' version when passed a list that might have syntax in it.
     (define id->msg
       (lambda (id)
         (cond
           [(= (optimize-level) 3) #f]
-          [(and id (syntax->source-info id)) =>
+          [(and (syntax? id) (syntax->source-info id)) =>
            (lambda (si) (format "expression ~s ~a" (syntax->datum id) si))]
           [(syntax? id)(format "expression ~s" (syntax->datum id))]
           [else (format "expression ~s" id)])))
