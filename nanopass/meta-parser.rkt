@@ -13,6 +13,8 @@
 (require "syntaxconvert.rkt")
 (require "meta-syntax-dispatch.rkt")
 
+(require (for-template racket))
+
 (define make-meta-parser
   (lambda (desc)
     (let ([lang-name (language-name desc)]
@@ -91,12 +93,12 @@
       (lambda (x)
         (lambda (alt)
           #`[(#,(tspec-meta-pred (terminal-alt-tspec alt)) #,x)
-              (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
+             (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
     (define make-nonterm-unquote
       (lambda (x)
         (lambda (alt)
           #`[(#,(ntspec-meta-pred (nonterminal-alt-ntspec alt)) #,x)
-              (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
+             (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
     (define make-nonterm-clause
       (lambda (x maybe?)
         (lambda (alt)
@@ -105,7 +107,7 @@
               (raise-syntax-error 'meta-parser "unrecognized meta variable"
                 (language-name desc) (alt-syn alt)))
             (with-syntax ([proc-name (ntspec-meta-parse-name spec)])
-              #`(proc-name #,x #f nested? maybe?))))))
+              #`(proc-name #,x #f nested? #,maybe?))))))
     (define make-pair-clause
       (lambda (stx first-stx rest-stx)
         (lambda (alt)
@@ -153,7 +155,6 @@
       (syntax->datum nonterm-imp-alt*)
       (syntax->datum nonterm-nonimp-alt*)))
       #`(lambda (stx error? nested? maybe?)
-          (printf "matching: ~s\n" (syntax->datum stx))
           (or (syntax-case stx ()
                 [(unquote id)
                  (and (unquote? #'unquote) (identifier? #'id))
@@ -305,10 +306,10 @@
   (lambda (pass-name omrec ometa-parser)
     (lambda (x)
       (syntax-case x ()
-        [(_ ntname stuff ...)
-         (with-syntax ([quasiquote (datum->syntax pass-name 'quasiquote)])
+        [(k ntname stuff ...)
+         (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
            #`(let-syntax ([quasiquote '#,(make-quasiquote-transformer
-                                           pass-name #'ntname
+                                           #'k #'ntname
                                            omrec ometa-parser)])
                stuff ...))]))))
 
@@ -325,10 +326,12 @@
            (ometa-parser (syntax->datum ntname) #'stuff #f))
          #;(let ([stx #f])
          (trace-let quasiquote-transformer ([t (syntax->datum #'stuff)])
+           (let ([t0 (ometa-parser (syntax->datum ntname) #'stuff #f)])
+             (printf "ometa-parser result: ~s\n" t0)
            (let ([t (output-records->syntax pass-name ntname omrec ometa-parser
-                      (ometa-parser (syntax->datum ntname) #'stuff #f))])
+                      t0)])
              (set! stx t)
-             (syntax->datum t)))
+             (syntax->datum t))))
          stx)]))))
 
 ;; helper function used by the output metaparser in the meta-parsing
@@ -344,9 +347,10 @@
       (lambda (id)
         (cond
           [(= (optimize-level) 3) #f]
-          [(syntax->source-info id) =>
+          [(and id (syntax->source-info id)) =>
            (lambda (si) (format "expression ~s ~a" (syntax->datum id) si))]
-          [else (format "expression ~s" (syntax->datum id))])))
+          [(syntax? id)(format "expression ~s" (syntax->datum id))]
+          [else (format "expression ~s" id)])))
     (define process-nano-fields
       (lambda (elt* spec* binding*)
         (if (null? elt*)
@@ -418,7 +422,8 @@
           [(nano-meta? elt)
            #;(assert (pair-alt? (nano-meta-alt elt)))
            (process-nano-meta elt binding*)]
-          [(nano-quote? elt) (let ([x (nano-quote-x elt)]) (values x x '() binding*))]
+          [(nano-quote? elt)
+            (let ([x (nano-quote-x elt)]) (values x x '() binding*))]
           [(nano-unquote? elt)
            (let ([x (nano-unquote-x elt)])
              (with-syntax ([expr (if (ntspec? spec)

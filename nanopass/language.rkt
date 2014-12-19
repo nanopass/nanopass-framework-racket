@@ -244,10 +244,10 @@
         (syntax-case term* ()
           [() '()]
           [((=> (t (tmeta* ...)) handler) term* ...) (double-arrow? #'=>)
-           (cons (make-tspec #'t #'(tmeta* ...) #'handler)
+           (cons (make-tspec #'t (stx->list #'(tmeta* ...)) #'handler)
              (parse-terms #'(term* ...)))]
           [((t (tmeta* ...)) => handler term* ...) (double-arrow? #'=>)
-           (cons (make-tspec #'t #'(tmeta* ...) #'handler)
+           (cons (make-tspec #'t (stx->list #'(tmeta* ...)) #'handler)
              (parse-terms #'(term* ...)))]
           [((t (tmeta* ...)) term* ...) 
            (cons (make-tspec #'t (stx->list #'(tmeta* ...)))
@@ -342,7 +342,7 @@
                          #;(define-property #,lang meta-parser-property meta-parser)
                          (define-who unparser-name unparser)
                          (void))])
-            (pretty-print (syntax->datum stx))
+            #;(pretty-print (syntax->datum stx))
             stx))))
 
     (syntax-case x ()
