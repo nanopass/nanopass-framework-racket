@@ -15,8 +15,6 @@
                        ,(subst new old (cdr tree)))]
       [else tree])))  
 
-(define void (lambda () (if #f #f)))
-  
 (define-syntax define-passes
   (syntax-rules ()
     [(_ p1 p2 ...) (list '(p1 p2 ...) (list p1 p2 ...))]))
@@ -28,8 +26,10 @@
       [(x) (set! pass-list x)])))
 
 (define-syntax pass-names
-  (identifier-syntax (let ([passes (passes)])
-                       (if (null? passes) '() (car passes)))))
+  (lambda (x)
+    (syntax-case x ()
+      [id (identifier? #'id) #'(let ([passes (passes)]) (if (null? passes) '() (car passes)))]
+      [(id x ...) (identifier? #'id) #'((let ([passes (passes)]) (if (null? passes) '() (car passes))) x ...)])))
 
 (define tests
   (let ([test-list '()])
@@ -47,7 +47,7 @@
            [(eq? x #t) pass-names]
            [(eq? x #f) '()]
            [(and (symbol? x) (memq x pass-names)) (list x)]
-           [(and (list? x) (for-all (lambda (x) (memq x pass-names)) x)) x]
+           [(and (list? x) (andmap (lambda (x) (memq x pass-names)) x)) x]
            [else (error 'tracer (format "invalid argument ~s" x))]))])))
   
 (define test-all
@@ -71,17 +71,30 @@
                       (write-char (read-char))
                       (f)))])
         f)))) 
+
+(define my-eval
+  (lambda (x)
+    (eval `(let-syntax ([if (syntax-rules ()
+                              [(_ a b) (if a b (void))]
+                              [(_ a b c) (if a b c)])]
+                        [cons (syntax-rules () [(_ a b) (mcons a b)])]
+                        [set-car! (syntax-rules () [(_ p v) (set-mcar! p v)])]
+                        [set-cdr! (syntax-rules () [(_ p v) (set-mcdr! p v)])]
+                        [car (syntax-rules () [(_ p) (mcar p)])]
+                        [cdr (syntax-rules () [(_ p) (mcdr p)])])
+             ,x))))
   
 (define test-one
   (case-lambda
     [(original-input-expr) (test-one original-input-expr #t)]
     [(original-input-expr emit?)
-     (let ([answer (interpret original-input-expr)])
+     (let ([answer (my-eval original-input-expr)])
        (define-syntax on-error
          (syntax-rules ()
            [(_ e0 e1 e2 ...)
-             (guard (e [else e0 (raise e)])
-               e1 e2 ...)]))
+            (call-with-exception-handler
+              (lambda (e) e0 (raise e))
+              (lambda () e1 e2 ...))]))
        #;
        (define check-eval
          (lambda (pass-name input-expr output-expr)
@@ -91,12 +104,12 @@
                (pretty-print input-expr)
                (printf "========~%~s output:~%" pass-name)
                (pretty-print output-expr))
-             (let ([t (interpret output-exr)])
+             (let ([t (my-eval output-exr)])
                (unless (equal? t answer)
                  (error pass-name 
                    (format "answer is ~s, should have been ~s" t answer)))
                (let ([t (parameterize ([run-cp0 (lambda (cp0 x) x)])
-                          (interpret output-expr))])
+                          (my-eval output-expr))])
                  (unless (equal? t answer)
                    (error pass-name "answer is ~s, should have been ~s"
                      t answer)))))))
