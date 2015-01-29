@@ -25,19 +25,19 @@
 
 (define-language L0
   (terminals
-   (variable (x))
-   (constant (c))
-   (primitive (pr)))
+    (variable (x))
+    (constant (c))
+    (primitive (pr)))
   (Expr (e)
-        (var x)
-        (quote c)
-        (begin e0 ... e1)
-        (if e0 e1 e2)
-        (lambda (x ...) e0 ... e1)
-        (let ([x e] ...) e0 ... e1)
-        (letrec ([x e] ...) e0 ... e1)
-        (primapp pr e1 ...)
-        (app e0 e1 ...)))
+    (var x)
+    (quote c)
+    (begin e0 ... e1)
+    (if e0 e1 e2)
+    (lambda (x ...) e0 ... e1)
+    (let ([x e] ...) e0 ... e1)
+    (letrec ([x e] ...) e0 ... e1)
+    (primapp pr e1 ...)
+    (app e0 e1 ...)))
 
 (define-struct var (sym ref set mset) #:prefab #:constructor-name $make-var)
 
@@ -45,38 +45,38 @@
 
 (define-language LUNPARSE
   (terminals
-   (var (x))         => var-sym
-   (constant (c))
-   (primitive (pr)))
+    (var (x))         => var-sym
+    (constant (c))
+    (primitive (pr)))
   (Expr (e body)
-        (var x)                                      => x
-        (quoted c)                                   => (quote c)
-        (seq e0 e1)                                  => (begin e0 e1)
-        (if e0 e1 e2)
-        (lambda (x ...) e0 ... e1)
-        (binding (x ...) (e ...) body0 ... body1)    => (let ([x e] ...) body0 ... body1)
-        (recbinding (x ...) (e ...) body0 ... body1) => (letrec ([x e] ...) body0 ... body1)
-        (primapp pr e1 ...)                          => (pr e1 ...)
-        (app e0 e1 ...)                              => (e0 e1 ...)))
+    (var x)                                      => x
+    (quoted c)                                   => (quote c)
+    (seq e0 e1)                                  => (begin e0 e1)
+    (if e0 e1 e2)
+    (lambda (x ...) e0 ... e1)
+    (binding (x ...) (e ...) body0 ... body1)    => (let ([x e] ...) body0 ... body1)
+    (recbinding (x ...) (e ...) body0 ... body1) => (letrec ([x e] ...) body0 ... body1)
+    (primapp pr e1 ...)                          => (pr e1 ...)
+    (app e0 e1 ...)                              => (e0 e1 ...)))
 
 (define-language LBool
   (terminals
-   (boolean (b)))
+    (boolean (b)))
   (Expr (e)
-        b))
+    b))
 
 (define-language LBoolLambda
   (terminals
-   (boolean (b))
-   (symbol (x)))
+    (boolean (b))
+    (symbol (x)))
   (Expr (e)
-        v
-        x
-        (lambda (x) e)
-        (and e0 e1)
-        (or e0 e1)
-        (not e)
-        (e0 e1))
+    v
+    x
+    (lambda (x) e)
+    (and e0 e1)
+    (or e0 e1)
+    (not e)
+    (e0 e1))
   (Value (v)
          b))
 
@@ -279,24 +279,24 @@
 
 (define-language LVAR
   (terminals
-   (var (x))
-   (primitive (pr))
-   (datum (d)))
+    (var (x))
+    (primitive (pr))
+    (datum (d)))
   (Expr (e)
-        (var x)
-        (quote d)
-        (if e0 e1 e2)
-        (begin e0 ... e1)
-        (let ([x e] ...) e1)
-        (letrec ([x e] ...) e1)
-        (app e0 e1 ...)
-        (primapp pr e ...)))
+    (var x)
+    (quote d)
+    (if e0 e1 e2)
+    (begin e0 ... e1)
+    (let ([x e] ...) e1)
+    (letrec ([x e] ...) e1)
+    (app e0 e1 ...)
+    (primapp pr e ...)))
 
 (define-pass break-variable : LVAR (ir) -> LVAR ()
   (definitions
     (define var? symbol?))
   (Expr : Expr (ir) -> Expr ()
-        [(var ,x) (printf "found var: ~a\n" (var-sym x)) `(var ,x)]))
+    [(var ,x) (printf "found var: ~a\n" (var-sym x)) `(var ,x)]))
 
 (define ensure-correct-identifiers
   (test-suite "ensure-correct-identifiers"
@@ -311,13 +311,13 @@
 
 (define-language Lmaybe
   (terminals
-   (boolean (b))
-   (integer (i)))
+    (boolean (b))
+    (integer (i)))
   (Exp (e)
-       (Int i)
-       (Bool b)
-       (Bar (maybe i) e)
-       (Foo i (maybe e))))
+    (Int i)
+    (Bool b)
+    (Bar (maybe i) e)
+    (Foo i (maybe e))))
 
 (define-parser parse-Lmaybe Lmaybe)
 
@@ -377,7 +377,7 @@
       (let ()
         (define-pass add-one-int : Lmaybe (ir) ->  Lmaybe ()
           (Exp : Exp (ir) -> Exp ()
-               [(Int ,i) `(Int ,(+ i 1))]))
+            [(Int ,i) `(Int ,(+ i 1))]))
         (and
          (check-equal?
           '(Int 4)
@@ -397,7 +397,7 @@
       (let ()
         (define-pass add-one : Lmaybe (ir) ->  Lmaybe ()
           (Exp : Exp (ir) -> Exp ()
-               [(Foo ,i ,[e?]) `(Foo ,(+ i 1) ,e?)]
+            [(Foo ,i ,[e?]) `(Foo ,(+ i 1) ,e?)]
                [(Bar ,i? ,[e]) `(Bar ,(and i? (+ i? 1)) ,e)]
                [(Int ,i) `(Int ,(+ i 1))]))
         (and
@@ -419,13 +419,13 @@
 
 (define-language Lmaybe2
   (terminals
-   (boolean (b))
-   (integer (i)))
+    (boolean (b))
+    (integer (i)))
   (Exp (e)
-       (Int i)
-       (Bool b)
-       (Bar (maybe i) ... e)
-       (Foo i (maybe e) ...)))
+    (Int i)
+    (Bool b)
+    (Bar (maybe i) ... e)
+    (Foo i (maybe e) ...)))
 
 (define-parser parse-Lmaybe2 Lmaybe2)
 
@@ -515,7 +515,7 @@
       (let ()
         (define-pass add-one-int : Lmaybe2 (ir) ->  Lmaybe2 ()
           (Exp : Exp (ir) -> Exp ()
-               [(Int ,i) `(Int ,(+ i 1))]))
+            [(Int ,i) `(Int ,(+ i 1))]))
         (and
          (check-equal?
           '(Int 4)
@@ -535,9 +535,9 @@
       (let ()
         (define-pass add-one : Lmaybe2 (ir) ->  Lmaybe2 ()
           (Exp : Exp (ir) -> Exp ()
-               [(Foo ,i ,[e?*] ...) `(Foo ,(+ i 1) ,e?* ...)]
-               [(Bar ,i?* ... ,[e]) `(Bar ,(map (lambda (i?) (and i? (+ i? 1))) i?*) ... ,e)]
-               [(Int ,i) `(Int ,(+ i 1))]))
+            [(Foo ,i ,[e?*] ...) `(Foo ,(+ i 1) ,e?* ...)]
+            [(Bar ,i?* ... ,[e]) `(Bar ,(map (lambda (i?) (and i? (+ i? 1))) i?*) ... ,e)]
+            [(Int ,i) `(Int ,(+ i 1))]))
         (and
          (check-equal?
           '(Int 4)
@@ -557,23 +557,23 @@
 
 (define-language LMaybeNoBool
   (terminals
-   (symbol (x))
-   (number (n)))
+    (symbol (x))
+    (number (n)))
   (Expr (e)
-        (foo x (maybe n))
-        (bar (maybe e) x)
-        (num n)
-        (ref x)))
+    (foo x (maybe n))
+    (bar (maybe e) x)
+    (num n)
+    (ref x)))
 
 (define-language LMaybeListNoBool
   (terminals
-   (symbol (x))
-   (number (n)))
+    (symbol (x))
+    (number (n)))
   (Expr (e)
-        (foo ([x (maybe n)] ...) e)
-        (bar (maybe e) ... x)
-        (num n)
-        (ref x)))
+    (foo ([x (maybe n)] ...) e)
+    (bar (maybe e) ... x)
+    (num n)
+    (ref x)))
 
 (define maybe-unparse-tests
   (test-suite "maybe-unparse-tests"
@@ -612,60 +612,60 @@
 ;; tests related to issue #7 on github.com
 (define-language LPairs
   (terminals
-   (symbol (x))
-   (null (n)))
+    (symbol (x))
+    (null (n)))
   (Expr (e)
-        x
-        n
-        (e0 . e1)))
+    x
+    n
+    (e0 . e1)))
 
 (define-parser parse-LPairs LPairs)
 
 (define-pass reverse-pairs : LPairs (p) -> LPairs ()
   (Expr : Expr (p) -> Expr ()
-        [(,[e0] . ,[e1]) `(,e1 . ,e0)]))
+    [(,[e0] . ,[e1]) `(,e1 . ,e0)]))
 
 (define-language LList
   (terminals
-   (symbol (x))
-   (null (n)))
+    (symbol (x))
+    (null (n)))
   (Expr (e)
-        x
-        n
-        (e0 ... . e1)))
+    x
+    n
+    (e0 ... . e1)))
 
 (define-parser parse-LList LList)
 
 (define-language LList2
   (terminals
-   (symbol (x))
-   (null (n)))
+    (symbol (x))
+    (null (n)))
   (Expr (e)
-        x
-        n
-        (e0 ... e1)))
+    x
+    n
+    (e0 ... e1)))
 
 (define-pass swap-parts : LList (e) -> LList ()
   (Expr : Expr (e) -> Expr ()
-        [(,[e*] ... . ,[e])
-         `(,e ,e* ... . ())]))
+    [(,[e*] ... . ,[e])
+     `(,e ,e* ... . ())]))
 
 ;; example provided by Simon Stapleton via bug #7
 (define-language Lx
   (terminals
-   (symbol (x)))
+    (symbol (x)))
   (Expr (e)
-        x
-        (lambda (x* ... . x) e)
-        (define (x x* ... . x1) e)
-        (define x e)))
+    x
+    (lambda (x* ... . x) e)
+    (define (x x* ... . x1) e)
+    (define x e)))
 
 (define-parser parse-Lx Lx)
 
 (define-pass Px1 : Lx (ir) -> Lx ()
   (Expr : Expr (ir) -> Expr()
-        [(define (,x ,x* ... . ,x1) ,[e])
-         `(define ,x (lambda (,x* ... . ,x1) ,e))]))
+    [(define (,x ,x* ... . ,x1) ,[e])
+     `(define ,x (lambda (,x* ... . ,x1) ,e))]))
 
 (define language-dot-support
   (test-suite "language-dot-support"
@@ -837,23 +837,23 @@
 
 (define-language LMULTI
   (terminals
-   (var (x))
-   (primitive (pr))
-   (datum (d)))
+    (var (x))
+    (primitive (pr))
+    (datum (d)))
   (Expr (e)
-        (var x)
-        (primref pr)
-        (quote d)
-        (if e0 e1 e2)
-        (begin e0 ... e1)
-        (let ([x e] ...) e1)
-        (letrec ([x le] ...) e)
-        (app e0 e1 ...))
+    (var x)
+    (primref pr)
+    (quote d)
+    (if e0 e1 e2)
+    (begin e0 ... e1)
+    (let ([x e] ...) e1)
+    (letrec ([x le] ...) e)
+    (app e0 e1 ...))
   (LambdaExpr (le)
-              (lambda (x ...) e)
-              (case-lambda cl ...))
+    (lambda (x ...) e)
+    (case-lambda cl ...))
   (CaseLambdaClause (cl)
-                    (clause (x ...) e)))
+    (clause (x ...) e)))
 
 #;(test-suite error-messages
 (
