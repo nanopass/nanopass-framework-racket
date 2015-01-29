@@ -24,7 +24,7 @@
 (require (for-syntax "syntaxconvert.rkt"))
 (require (for-syntax "meta-parser.rkt"))
 (require (for-syntax "pass-helper.rkt"))
-(require (only-in "helpers.rkt" nanopass-record-tag))
+(require (only-in "helpers.rkt" nanopass-record-tag trace-let))
 
 ;; NOTE: the following is less general then the with-output-language because it does not
 ;; support multiple return values.  It also generates nastier code for the expander to deal
@@ -118,7 +118,7 @@
     (syntax-case x ()
       [(_ name ?colon ilang (id ...) ?arrow olang (xtra ...) . body)
        (and (identifier? #'name) (eq? (datum ?arrow) '->) (eq? (datum ?colon) ':)
-            (andmap identifier? #'(id ...)))
+            (andmap identifier? (syntax->list #'(id ...))))
        (let ([iunparser (unparser #'ilang)] [ounparser (unparser #'olang)])
          #`(define name
              (lambda (id ...)
