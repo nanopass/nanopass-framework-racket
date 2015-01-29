@@ -82,7 +82,8 @@
                         [set-cdr! (syntax-rules () [(_ p v) (set-mcdr! p v)])]
                         [car (syntax-rules () [(_ p) (mcar p)])]
                         [cdr (syntax-rules () [(_ p) (mcdr p)])])
-             ,x))))
+             ,x)
+          (make-base-namespace))))
   
 (define test-one
   (case-lambda
