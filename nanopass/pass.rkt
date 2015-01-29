@@ -313,7 +313,7 @@
             (lambda (cl*)
               (define nano-meta->fml*
                 (lambda (nm)
-                  (printf "nanometa: ~s\n" nm)
+                  #;(printf "nanometa: ~s\n" nm)
                   (let f ([nrec* (nano-meta-fields nm)] [fml* '()])
                     (fold-right
                       (rec g
@@ -1295,7 +1295,7 @@
                 and cannot generate one when either the input or output type is a terminal"
                 itype maybe-otype)
               (pass-desc-name pass-desc) src-stx))
-          (printf "Making Pdesc: ~a\n" (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype)))
+          #;(printf "Making Pdesc: ~a\n" (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype)))
           (let ([pdesc (make-pdesc (datum->syntax #'* (gensym (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype))))
                          itype (list #'ir) '() maybe-otype '() '() #f #f)])
             (set-pass-desc-pdesc*! pass-desc
@@ -1322,7 +1322,7 @@
                   candidate
                   (loop (cdr pdesc*)
                     (let ([pdesc (car pdesc*)])
-                      (printf "finding-candidate:\n  itype: ~s - ~s\n  maybe-otype: ~s - ~s\n  xfmls bits: ~s - ~s\n  xvals bits: ~s\n  and: ~s\n"
+                      #;(printf "finding-candidate:\n  itype: ~s - ~s\n  maybe-otype: ~s - ~s\n  xfmls bits: ~s - ~s\n  xvals bits: ~s\n  and: ~s\n"
                         (pdesc-maybe-itype pdesc) itype
                         (pdesc-maybe-otype pdesc) maybe-otype
                         (cdr (pdesc-fml* pdesc)) (pdesc-dflt* pdesc)
@@ -1344,7 +1344,7 @@
                           candidate)))))))
         ; doing a breadth-first search of maybe-otype and its subtypes
         ; could go up to parent itype(s) on itype as well
-        (printf "starting search (~a)...\n" msg)
+        #;(printf "starting search (~a)...\n" msg)
         (if maybe-otype
             (let ospec-loop ([ospec* (list (id->spec maybe-otype (pass-desc-maybe-olang pass-desc)))]
                              [sub-ospec* '()])
@@ -1478,7 +1478,7 @@
           (let ([olang (pass-desc-maybe-olang pass-desc)])
             (if olang
                 (begin
-                  (printf "olang: ~s\n" olang)
+                  #;(printf "olang: ~s\n" olang)
                 (let ([otype (or maybe-otype (language-entry-ntspec olang))])
                   (with-syntax ([checked-body
                                   #`(unless #,(generate-output-check otype #'x (language-ntspecs olang))
@@ -1575,7 +1575,7 @@
                            (s1 (stx-cdr stuff*) defn* (cons stuff processor*) echo?)
                            (s2 defn* processor* #`(begin #,@stuff*) echo?)))))
                (define (s2 defn* processor* maybe-body echo?)
-                 (printf "do-define-pass: ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s\n"
+                 #;(printf "do-define-pass: ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s, ~s\n"
                    #'pass-name echo? maybe-iname maybe-itype fml*
                    maybe-oname maybe-otype #'(xval ...) defn* (reverse processor*) maybe-body)
                  (do-define-pass #'pass-name echo? maybe-iname maybe-itype fml*
