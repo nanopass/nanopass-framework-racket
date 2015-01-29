@@ -3,14 +3,14 @@
 ;;; See the accompanying file Copyright for details
 
 (provide
-  nonterm-id->ntspec define-nanopass-record
+  nonterm-id->ntspec
   (contract-out
     [find-spec (-> identifier? language? (or/c tspec? ntspec?))]
     [nonterminal-meta? (-> identifier? (listof ntspec?) boolean?)]
     [nano-alt->ntspec (-> alt? (listof ntspec?) any)]
-    [nonterm-id->ntspec? (-> identifier? (listof ntspec?) (or/c ntspec? false/c))]
-    [id->spec (-> identifier? language? (or/c tspec? ntspec? false/c))]
-    [term-id->tspec? (-> identifier? (listof ntspec?) (or/c ntspec? false/c))]
+    [nonterm-id->ntspec? (-> (or/c identifier? symbol?) (listof ntspec?) (or/c ntspec? false/c))]
+    [id->spec (-> (or/c identifier? symbol?) language? (or/c tspec? ntspec? false/c))]
+    [term-id->tspec? (-> (or/c identifier? symbol?) (listof tspec?) (or/c tspec? false/c))]
 
     [meta-name->tspec (-> identifier? (listof tspec?) (or/c false/c tspec?))]
     [meta-name->ntspec (-> identifier? (listof ntspec?) (or/c false/c ntspec?))]
@@ -36,14 +36,17 @@
                               nano-unquote? nano-cata?
                               nano-meta? list?)))]
 
-    [make-nano-cata (-> identifier? syntax? 
+    [make-nano-cata (-> symbol?
+                        syntax? 
                         (or/c false/c syntax?)
                         (or/c false/c (listof syntax?))
-                        (listof identifier?) boolean? nano-cata?)]
+                        (or/c false/c (listof identifier?))
+                        boolean?
+                        nano-cata?)]
     [nano-cata? (-> any/c boolean?)]
-    [nano-cata-itype (-> nano-cata? identifier?)]
+    [nano-cata-itype (-> nano-cata? symbol?)]
     [nano-cata-syntax (-> nano-cata? syntax?)]
-    [nano-cata-procexpr (-> nano-cata? syntax?)]
+    [nano-cata-procexpr (-> nano-cata? (or/c false/c syntax?))]
     [nano-cata-maybe-inid* (-> nano-cata? (or/c false/c (listof syntax?)))]
     [nano-cata-outid* (-> nano-cata? (or/c false/c (listof identifier?)))]
     [nano-cata-maybe? (-> nano-cata? boolean?)]
@@ -124,7 +127,7 @@
 (require syntax/stx)
 (require "helpers.rkt" "syntaxconvert.rkt")
 (require (for-template racket))
-(require (for-template (only-in "helpers.rkt" define-nanopass-record)))
+(require (for-template (only-in "helpers.rkt" nanopass-record)))
 
 (define-struct language
   (name entry-ntspec tspecs ntspecs (tag-mask #:mutable) (record #:mutable) (pred #:mutable))
@@ -142,14 +145,14 @@
               (let ([test-spec (car specs)])
                 (for-each
                   (lambda (mv)
-                    (let ([mv-sym (syntax->datum mv)])
+                    (let ([mv-sym (maybe-syntax->datum mv)])
                       (for-each
                         (lambda (spec)
-                          (when (memq mv-sym (map syntax->datum (spec-meta-vars spec)))
+                          (when (memq mv-sym (map maybe-syntax->datum (spec-meta-vars spec)))
                             (raise-syntax-error 'define-language
                               (format "the forms ~s and ~s in language ~s uses the same meta-variable"
-                                (syntax->datum (spec-name test-spec))
-                                (syntax->datum (spec-name spec)) (syntax->datum lang-name))
+                                (maybe-syntax->datum (spec-name test-spec))
+                                (maybe-syntax->datum (spec-name spec)) (maybe-syntax->datum lang-name))
                               mv)))
                         (cdr specs))))
                   (spec-meta-vars test-spec))))))))
@@ -255,32 +258,32 @@
 ;; record helpers 
 (define find-spec
   (lambda (m lang)
-    (let ([name (meta-var->raw-meta-var (syntax->datum m))])
+    (let ([name (meta-var->raw-meta-var (maybe-syntax->datum m))])
       (or (findf (lambda (ntspec)
-                   (memq name (map syntax->datum (ntspec-meta-vars ntspec))))
+                   (memq name (map maybe-syntax->datum (ntspec-meta-vars ntspec))))
             (language-ntspecs lang))
           (findf (lambda (tspec)
-                   (memq name (map syntax->datum (tspec-meta-vars tspec))))
+                   (memq name (map maybe-syntax->datum (tspec-meta-vars tspec))))
             (language-tspecs lang))
           (raise-syntax-error #f "meta not found" (language-name lang) m)))))
 
 (define nonterminal-meta?
   (lambda (m ntspec*)
-    (let ([m (meta-var->raw-meta-var (syntax->datum m))])
-      (and (ormap (lambda (x) (memq m (map syntax->datum (ntspec-meta-vars x))))
+    (let ([m (meta-var->raw-meta-var (maybe-syntax->datum m))])
+      (and (ormap (lambda (x) (memq m (map maybe-syntax->datum (ntspec-meta-vars x))))
              ntspec*)
            #t))))
   
 (define nonterminal-meta->ntspec
   (lambda (meta ntspecs)
-    (let ([meta (meta-var->raw-meta-var (syntax->datum meta))])
-      (findf (lambda (x) (memq meta (map syntax->datum (ntspec-meta-vars x))))
+    (let ([meta (meta-var->raw-meta-var (maybe-syntax->datum meta))])
+      (findf (lambda (x) (memq meta (map maybe-syntax->datum (ntspec-meta-vars x))))
         ntspecs))))
   
 (define terminal-meta->tspec
   (lambda (meta tspecs)
-    (let ([meta (meta-var->raw-meta-var (syntax->datum meta))])
-      (findf (lambda (x) (memq meta (map syntax->datum (tspec-meta-vars x))))
+    (let ([meta (meta-var->raw-meta-var (maybe-syntax->datum meta))])
+      (findf (lambda (x) (memq meta (map maybe-syntax->datum (tspec-meta-vars x))))
         tspecs))))
 
 ;;; TODO, figure out if this can ever be called, if not remove the
@@ -296,14 +299,14 @@
 
 (define term-id->tspec?
   (lambda (id tspecs)
-    (let ([type (syntax->datum id)])
-      (findf (lambda (tspec) (eq? (syntax->datum (tspec-type tspec)) type))
+    (let ([type (maybe-syntax->datum id)])
+      (findf (lambda (tspec) (eq? (maybe-syntax->datum (tspec-type tspec)) type))
         tspecs))))
 
 (define nonterm-id->ntspec?
   (lambda (id ntspecs)
-    (let ([ntname (syntax->datum id)])
-      (findf (lambda (ntspec) (eq? (syntax->datum (ntspec-name ntspec)) ntname))
+    (let ([ntname (maybe-syntax->datum id)])
+      (findf (lambda (ntspec) (eq? (maybe-syntax->datum (ntspec-name ntspec)) ntname))
         ntspecs))))
 
 (define-syntax nonterm-id->ntspec
@@ -315,16 +318,16 @@
 
 (define-who meta-name->tspec
   (lambda (m tspecs)
-    (let ([m (meta-var->raw-meta-var (syntax->datum m))])
+    (let ([m (meta-var->raw-meta-var (maybe-syntax->datum m))])
       (findf (lambda (tspec)
-               (memq m (map syntax->datum (tspec-meta-vars tspec)))) 
+               (memq m (map maybe-syntax->datum (tspec-meta-vars tspec)))) 
         tspecs))))
   
 (define-who meta-name->ntspec
   (lambda (m ntspecs)
-    (let ([m (meta-var->raw-meta-var (syntax->datum m))])
+    (let ([m (meta-var->raw-meta-var (maybe-syntax->datum m))])
       (findf (lambda (ntspec)
-               (memq m (map syntax->datum (ntspec-meta-vars ntspec)))) 
+               (memq m (map maybe-syntax->datum (ntspec-meta-vars ntspec)))) 
         ntspecs))))
 
 (define subspec?
@@ -370,8 +373,8 @@
       (lambda (specs)
         (cond
           [(null? specs) #f]
-          [(eq? (syntax->datum id)
-             (syntax->datum 
+          [(eq? (maybe-syntax->datum id)
+             (maybe-syntax->datum 
                (let ([spec (car specs)])
                  (cond
                    [(tspec? spec) (tspec-type spec)]
@@ -424,12 +427,12 @@
         ;; Needs to return #t because it ends up encoded in a field this way
         (define meta?
           (lambda (m)
-            (let ([m (meta-var->raw-meta-var (syntax->datum m))])
+            (let ([m (meta-var->raw-meta-var (maybe-syntax->datum m))])
               (and (or (ormap (lambda (tspec)
-                                (memq m (map syntax->datum (tspec-meta-vars tspec))))
+                                (memq m (map maybe-syntax->datum (tspec-meta-vars tspec))))
                          tspec*)
                        (ormap (lambda (ntspec)
-                                (memq m (map syntax->datum (ntspec-meta-vars ntspec))))
+                                (memq m (map maybe-syntax->datum (ntspec-meta-vars ntspec))))
                          ntspec*))
                    #t))))
         (define annotate-tspec!
@@ -448,7 +451,7 @@
           (lambda (bits)
             (lambda (ntspec alt-all-tag)
               (let ([tag (ntspec-tag ntspec)] [ntname (ntspec-name ntspec)])
-                (let ([ntname-sym (syntax->datum ntname)])
+                (let ([ntname-sym (maybe-syntax->datum ntname)])
                   (let f ([alt* (ntspec-alts ntspec)] [next 1] [alt-all-tag alt-all-tag])
                     (if (null? alt*)
                         alt-all-tag
@@ -580,7 +583,7 @@
                    (lambda (tspec) (values (tspec-pred tspec) (tspec-type tspec)))]
                   [else (raise-syntax-error 'define-language
                           (format "unrecognized meta-variable in language ~s"
-                            (syntax->datum (language-name lang)))
+                            (maybe-syntax->datum (language-name lang)))
                           fld)])
                 (lambda (pred? name)
                   (with-syntax ([pred? (if maybe?
@@ -640,8 +643,7 @@
 
       (with-syntax ([((ntrec ...) (altrec ...))
                      (ntspecs->lang-records ntspecs)])
-          #`((define-nanopass-record)
-             (define-struct (#,lang-rec-id nanopass-record) () #:prefab)
+          #`((define-struct (#,lang-rec-id nanopass-record) () #:prefab)
              ntrec ...
              altrec ...)))))
 
@@ -688,11 +690,11 @@
     (let ([syn (alt-syn ialt)])
       (cond
         [(terminal-alt? ialt)
-         (let ([type (syntax->datum (tspec-type (terminal-alt-tspec ialt)))])
+         (let ([type (maybe-syntax->datum (tspec-type (terminal-alt-tspec ialt)))])
            (scan-alts
              (lambda (alt)
                (and (terminal-alt? alt)
-                    (eq? (syntax->datum (tspec-type (terminal-alt-tspec alt))) type)))))]
+                    (eq? (maybe-syntax->datum (tspec-type (terminal-alt-tspec alt))) type)))))]
         [(pair-alt? ialt)
          (if (pair-alt-implicit? ialt)
              (let ([pattern (pair-alt-pattern ialt)])
@@ -709,6 +711,6 @@
                         (not (pair-alt-implicit? alt))
                         (let ([asyn (alt-syn alt)])
                           (let ([apattern (pair-alt-pattern alt)])
-                            (and (eq? (syntax->datum (stx-car asyn)) (syntax->datum (stx-car syn)))
+                            (and (eq? (maybe-syntax->datum (stx-car asyn)) (maybe-syntax->datum (stx-car syn)))
                                  (equal? apattern pattern)))))))))]
         [else (error who "unexpected alt" ialt)]))))

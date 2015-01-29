@@ -3,6 +3,9 @@
 ;;; See the accompanying file Copyright for details
 
 (provide
+  ;; hack
+  maybe-syntax->datum
+
   ;; auxiliary keywords for language/pass definitions
   extends definitions entry terminals nongenerative-id
 
@@ -64,7 +67,7 @@
                       (-> (integer-in 0 3) any))])
 
   ;; the base record, so that we can use gensym syntax
-  define-nanopass-record
+  (struct-out nanopass-record)
 
   ;; failure token so that we can know when parsing fails with a gensym
   (contract-out [np-parse-fail-token (and/c symbol? (not/c symbol-interned?))])
@@ -76,6 +79,12 @@
 (require racket/fixnum (for-syntax racket/fixnum))
 (require syntax/srcloc)
 (require (for-syntax syntax/stx))
+
+(define maybe-syntax->datum
+  (lambda (x)
+    (if (syntax? x)
+        (syntax->datum x)
+        x)))
 
 (define list-head
   (lambda (ls n)
@@ -415,13 +424,7 @@
 
 (define np-parse-fail-token (gensym "np-parse-fail-token"))
 
-(define-syntax define-nanopass-record
-  (lambda (x)
-    (syntax-case x ()
-      [(k) (with-syntax ([nanopass-record (datum->syntax #'k 'nanopass-record)]
-                         [nanopass-record? (datum->syntax #'k 'nanopass-record?)]
-                         [nanopass-record-tag (datum->syntax #'k 'nanopass-record-tag)])
-             #'(define-struct nanopass-record (tag) #:prefab))])))
+(define-struct nanopass-record (tag) #:prefab)
 
 (define-who optimize-level
   (make-parameter 2

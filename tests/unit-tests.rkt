@@ -370,7 +370,7 @@
     (let ()
       (define-pass add-one-int : Lmaybe (ir) ->  Lmaybe ()
         (Exp : Exp (ir) -> Exp ()
-          [(Int ,i) `(Int ,(fx+ i 1))]))
+          [(Int ,i) `(Int ,(+ i 1))]))
       (and
         (assert-equal?
           '(Int 4)
@@ -390,9 +390,9 @@
     (let ()
       (define-pass add-one : Lmaybe (ir) ->  Lmaybe ()
         (Exp : Exp (ir) -> Exp ()
-          [(Foo ,i ,[e?]) `(Foo ,(fx+ i 1) ,e?)]
-          [(Bar ,i? ,[e]) `(Bar ,(and i? (fx+ i? 1)) ,e)]
-          [(Int ,i) `(Int ,(fx+ i 1))]))
+          [(Foo ,i ,[e?]) `(Foo ,(+ i 1) ,e?)]
+          [(Bar ,i? ,[e]) `(Bar ,(and i? (+ i? 1)) ,e)]
+          [(Int ,i) `(Int ,(+ i 1))]))
       (and
         (assert-equal?
           '(Int 4)
@@ -507,7 +507,7 @@
     (let ()
       (define-pass add-one-int : Lmaybe2 (ir) ->  Lmaybe2 ()
         (Exp : Exp (ir) -> Exp ()
-          [(Int ,i) `(Int ,(fx+ i 1))]))
+          [(Int ,i) `(Int ,(+ i 1))]))
       (and
         (assert-equal?
           '(Int 4)
@@ -527,9 +527,9 @@
     (let ()
       (define-pass add-one : Lmaybe2 (ir) ->  Lmaybe2 ()
         (Exp : Exp (ir) -> Exp ()
-          [(Foo ,i ,[e?*] ...) `(Foo ,(fx+ i 1) ,e?* ...)]
-          [(Bar ,i?* ... ,[e]) `(Bar ,(map (lambda (i?) (and i? (fx+ i? 1))) i?*) ... ,e)]
-          [(Int ,i) `(Int ,(fx+ i 1))]))
+          [(Foo ,i ,[e?*] ...) `(Foo ,(+ i 1) ,e?* ...)]
+          [(Bar ,i?* ... ,[e]) `(Bar ,(map (lambda (i?) (and i? (+ i? 1))) i?*) ... ,e)]
+          [(Int ,i) `(Int ,(+ i 1))]))
       (and
         (assert-equal?
           '(Int 4)

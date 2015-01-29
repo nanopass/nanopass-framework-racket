@@ -44,8 +44,8 @@
     ; error message when the original had (fixnum (x y z)) and our extension has (fixnum (x y))
     (define tspec=?
       (lambda (ts1 ts2)
-        (and (equal? (syntax->datum (tspec-meta-vars ts1)) 
-               (syntax->datum (tspec-meta-vars ts2)))
+        (and (equal? (map syntax->datum (tspec-meta-vars ts1)) 
+               (map syntax->datum (tspec-meta-vars ts2)))
              (eq? (syntax->datum (tspec-type ts1)) 
                (syntax->datum (tspec-type ts2)))))) 
 
