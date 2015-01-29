@@ -16,15 +16,17 @@
 
 (provide define-pass trace-define-pass echo-define-pass with-output-language nanopass-case)
 
-(require (for-syntax srfi/1))
-(require (for-syntax racket/syntax))
-(require (for-syntax syntax/stx))
-(require (for-syntax "helpers.rkt"))
-(require (for-syntax "records.rkt"))
-(require (for-syntax "syntaxconvert.rkt"))
-(require (for-syntax "meta-parser.rkt"))
-(require (for-syntax "pass-helper.rkt"))
-(require (only-in "helpers.rkt" nanopass-record-tag trace-let))
+(require (for-syntax racket/list
+                     racket/syntax
+                     syntax/stx
+                     syntax/parse
+                     "helpers.rkt"
+                     "records.rkt"
+                     "syntaxconvert.rkt"
+                     "meta-parser.rkt"
+                     "pass-helper.rkt")
+         (only-in "helpers.rkt"
+                  nanopass-record-tag trace-let))
 
 ;; NOTE: the following is less general then the with-output-language because it does not
 ;; support multiple return values.  It also generates nastier code for the expander to deal
@@ -45,27 +47,27 @@
             (define-pass pass : * () -> lang  () (begin b b* ...))
             (pass)))])))
 
-(define-syntax with-output-language
-  (lambda (x)
-    (syntax-case x ()
-      [(id (lang type) b b* ...)
-       (let* ([olang-pair (syntax-local-value #'lang)]
-              [olang (and olang-pair (car olang-pair))]
-              [meta-parser (and olang-pair (cdr olang-pair))])
-         (unless (language? olang)
-           (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
-         (unless (procedure? meta-parser)
-           (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
-         (with-syntax ([in-context (datum->syntax #'id 'in-context)]
-                        [quasiquote (datum->syntax #'id 'quasiquote)])
-           #`(let-syntax ([quasiquote '#,(make-quasiquote-transformer
-                                           #'id #'type olang
-                                           meta-parser)]
-                           [in-context '#,(make-in-context-transformer
-                                            #'id olang
-                                            meta-parser)])
-               b b* ...)))]
+(define-syntax (with-output-language x)
+  (syntax-parse x
+    [(id (lang type) b b* ...)
+     #:with in-context (datum->syntax #'id 'in-context)
+     #:with quasiquote (datum->syntax #'id 'quasiquote)
+     (let* ([olang-pair (syntax-local-value #'lang)]
+            [olang (and olang-pair (car olang-pair))]
+            [meta-parser (and olang-pair (cdr olang-pair))])
+       (unless (language? olang)
+         (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
+       (unless (procedure? meta-parser)
+         (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
+       #`(let-syntax ([quasiquote '#,(make-quasiquote-transformer
+                                      #'id #'type olang
+                                      meta-parser)]
+                      [in-context '#,(make-in-context-transformer
+                                      #'id olang
+                                      meta-parser)])
+           b b* ...))]
       [(id lang b b* ...)
+       #:with in-context (datum->syntax #'id 'in-context)
        (let* ([olang-pair (syntax-local-value #'lang)]
               [olang (and olang-pair (car olang-pair))]
               [meta-parser (and olang-pair (cdr olang-pair))])
@@ -73,29 +75,27 @@
            (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
          (unless (procedure? meta-parser)
            (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
-         (with-syntax ([in-context (datum->syntax #'id 'in-context)])
-           #`(let-syntax
+         #`(let-syntax
                ([in-context '#,(make-in-context-transformer #'id olang
-                                 meta-parser)])
-               b b* ...)))])))
+                                                            meta-parser)])
+             b b* ...))]))
 
-(define-syntax nanopass-case
+(define-syntax (nanopass-case x)
   ; (nanopass-case (lang type) id ---) rebinds id so that it always holds the
   ; current ir even through cata recursion
-  (lambda (x) 
-    (syntax-case x (else)
-      [(k (lang type) x cl ... [else b0 b1 ...])
-       (identifier? #'x)
-       (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)]) ; if we were in a rhs, pick-up the output quasiquote
-         #'(let ()
-             (define-pass p : (lang type) (x) -> * (val)
-               (proc : type (x) -> * (val) cl ... [else b0 b1 ...])
-               (proc x))
-             (p x)))]
-      [(k (lang type) e cl ... [else b0 b1 ...])
-       #'(let ([ir e]) (k (lang type) ir cl ... [else b0 b1 ...]))]
-      [(k (lang type) e cl ...)
-       #`(k (lang type) e cl ...
+  (syntax-parse x
+    #:literals (else)
+    [(k (lang type) x:id cl ... [else b0 b1 ...])
+     #:with quasiquote (datum->syntax #'k 'quasiquote) ; if we were in a rhs, pick-up the output quasiquote
+     #'(let ()
+         (define-pass p : (lang type) (x) -> * (val)
+           (proc : type (x) -> * (val) cl ... [else b0 b1 ...])
+           (proc x))
+         (p x))]
+     [(k (lang type) e cl ... [else b0 b1 ...])
+      #'(let ([ir e]) (k (lang type) ir cl ... [else b0 b1 ...]))]
+     [(k (lang type) e cl ...)
+      #`(k (lang type) e cl ...
            [else (error 'nanopass-case
                    ; TODO: we were using $strip-wrap here, should be something like
                    ; $make-source-oops, but at least pseudo r6rs portable if possible
@@ -104,7 +104,7 @@
                            (format "empty else clause hit ~s ~a"
                              (maybe-syntax->datum x) si)
                            (format "empty else clause hit ~s"
-                             (maybe-syntax->datum x)))))])])))
+                             (maybe-syntax->datum x)))))])]))
 
 (define-syntax trace-define-pass
   (lambda (x)
@@ -315,7 +315,7 @@
                 (lambda (nm)
                   #;(printf "nanometa: ~s\n" nm)
                   (let f ([nrec* (nano-meta-fields nm)] [fml* '()])
-                    (fold-right
+                    (foldr
                       (rec g
                         (lambda (nrec fml*)
                           (cond
@@ -858,7 +858,7 @@
                                   (list #`[#,outid* #,(build-cata-call-1 itype maybe-otype maybe-inid* outid*)]))
                               (cond
                                 [(and (identifier? procexpr)
-                                      (find (lambda (pdesc)
+                                      (findf (lambda (pdesc)
                                               (bound-identifier=? procexpr (pdesc-name pdesc)))
                                         (pass-desc-pdesc* pass-desc))) =>
                                   (lambda (callee-pdesc)
