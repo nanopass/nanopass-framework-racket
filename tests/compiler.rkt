@@ -106,17 +106,17 @@
            (guard (not (assq 'begin env)))
            `(begin ,(f* e* env) ... ,(f e env))]
           [(let ([,x* ,rhs*] ...) ,e* ... ,e)
-           (guard (for-all symbol? x*) (set? x*))
+           (guard (andmap symbol? x*) (set? x*))
            (let-values ([(x* new-env) (extend-env* x* env)])
              `(let ([,x* ,(f* rhs* env)] ...)
                 ,(f* e* new-env) ... ,(f e new-env)))]
           [(letrec ([,x* ,rhs*] ...) ,e* ... ,e)
-           (guard (for-all symbol? x*) (set? x*))
+           (guard (andmap symbol? x*) (set? x*))
            (let-values ([(x* env) (extend-env* x* env)])
              `(letrec ([,x* ,(f* rhs* env)] ...)
                 ,(f* e* env) ... ,(f e env)))]
           [(lambda (,x* ...) ,e* ... ,e)
-           (guard (not (assq 'lambda env)) (for-all symbol? x*) (set? x*))
+           (guard (not (assq 'lambda env)) (andmap symbol? x*) (set? x*))
            (let-values ([(x* env) (extend-env* x* env)])
              `(lambda (,x* ...) ,(f* e* env) ... ,(f e env)))]
           [(,prim ,rand* ...)
@@ -137,7 +137,7 @@
           [else "unbound variable"])))
     (define valid-bindings?
       (lambda (ls)
-        (for-all variable? ls)))
+        (andmap variable? ls)))
     (define duplicate-names?
       (lambda (var*)
         (let f ([ls var*] [dups '()])

@@ -1278,7 +1278,7 @@
                   #'((lambda (t t* ...) (and t (pname t t* ...))) arg* ...))
                 #'(pname arg* ...)))]))
 
-    (trace-define find-proc
+    (define find-proc
       ; will never be asked to find a proc without an itype, so itype is never #f
       (lambda (msg pass-desc src-stx itype maybe-otype try-to-generate? xfmls-ok? xvals-ok?)
         (define (try-to-generate)
