@@ -3,18 +3,20 @@
 ;;; See the accompanying file Copyright for details
 
 (require rackunit
+         rackunit/text-ui
          "tests/compiler-test.rkt"
          "tests/helpers.rkt"
          "tests/unit-tests.rkt"
          "nanopass/helpers.rkt")
 
 (printf "Running unit tests\n")
-(run-test unit-tests)
-(run-test ensure-correct-identifiers)
-(run-test maybe-tests)
-(run-test maybe-dots-tests)
-(run-test maybe-unparse-tests)
-(run-test language-dot-support)
+(void
+ (run-tests unit-tests)
+ (run-tests ensure-correct-identifiers)
+ (run-tests maybe-tests)
+ (run-tests maybe-dots-tests)
+ (run-tests maybe-unparse-tests)
+ (run-tests language-dot-support))
 (printf "Compiler loaded, running all tests (quietly)\n")
 (time
   (begin
