@@ -44,19 +44,6 @@
   ;; formatting
   format printf pretty-print
 
-  ;; library export stuff (needed for when used inside module to
-  ;; auto-indirect export things)
-  ; indirect-export
-
-  ;; compile-time environment helpers
-  ; make-compile-time-value
-
-  ;; code organization helpers
-  ; module
-
-  ;; useful for warning items
-  ; warningf errorf
-
   ;; debugging support
   trace-lambda trace-define-syntax trace-let trace-define
           
@@ -73,12 +60,11 @@
   (contract-out [np-parse-fail-token (and/c symbol? (not/c symbol-interned?))])
 
   ;; handy syntactic stuff
-  with-implicit with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote
+  with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote
   (contract-out [list-head (-> list? exact-nonnegative-integer? list?)]))
 
-(require racket/fixnum (for-syntax racket/fixnum))
-(require syntax/srcloc)
-(require (for-syntax syntax/stx))
+(require (for-syntax syntax/stx)
+         syntax/srcloc)
 
 (define maybe-syntax->datum
   (lambda (x)
@@ -96,13 +82,6 @@
 (define-syntax datum
   (syntax-rules ()
     [(_ e) (syntax->datum #'e)]))
-
-(define-syntax with-implicit
-  (syntax-rules ()
-    [(_ (tid id ...) body0 body1 ...)
-     (with-syntax ([id (datum->syntax #'tid 'id)] ...)
-        body0
-        body1 ...)]))
 
 (define-syntax with-racket-quasiquote
   (lambda (x)
@@ -139,27 +118,27 @@
         (let loop ([body body] [level orig-level])
           (syntax-case body (unquote unquote-splicing)
             [(tmpl0 ... (unquote e))
-             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
+             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (- orig-level 1))])
                (cond
-                 [(fx= level 0) #'(tmpl0 ... (unquote e))]
-                 [(fx= level 1) #'(tmpl0 ... (unquote-splicing e))]
+                 [(= level 0) #'(tmpl0 ... (unquote e))]
+                 [(= level 1) #'(tmpl0 ... (unquote-splicing e))]
                  [else (let loop ([level level] [e #'e])
-                         (if (fx= level 1)
+                         (if (= level 1)
                              #`(tmpl0 ... (unquote-splicing #,e))
-                             (loop (fx- level 1) #`(apply append #,e))))]))]
+                             (loop (- level 1) #`(apply append #,e))))]))]
             [(tmpl0 ... (unquote-splicing e))
-             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
+             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (- orig-level 1))])
                (cond
-                 [(fx= level 0) #'(tmpl0 ... (unquote-splicing e))]
+                 [(= level 0) #'(tmpl0 ... (unquote-splicing e))]
                  [else (let loop ([level level] [e #'e])
-                         (if (fx= level 0)
+                         (if (= level 0)
                              #`(tmpl0 ... (unquote-splicing #,e))
-                             (loop (fx- level 1) #`(apply append #,e))))]))]
+                             (loop (- level 1) #`(apply append #,e))))]))]
             [(tmpl0 ... tmpl1 ellipsis)
              (eq? (syntax->datum #'ellipsis) '...)
-             (loop #'(tmpl0 ... tmpl1) (fx+ level 1))]
+             (loop #'(tmpl0 ... tmpl1) (+ level 1))]
             [(tmpl0 ... tmpl1)
-             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (fx- orig-level 1))])
+             (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) (- orig-level 1))])
                (let-values ([(tmpl1 t* e*) (gather-unquoted-exprs #'tmpl1)])
                  (when (null? e*)
                    (raise-syntax-error 'extended-quasiquote
@@ -169,9 +148,9 @@
                                          (extended-quasiquote
                                            #,tmpl1))
                                     . #,e*)])
-                   (if (fx= level 1)
+                   (if (= level 1)
                        #`(tmpl0 ... (unquote-splicing #,e))
-                       (loop (fx- level 1) #`(apply append #,e))))))]))))
+                       (loop (- level 1) #`(apply append #,e))))))]))))
     (define rebuild-body
       (lambda (body level)
         (syntax-case body (unquote unquote-splicing)
@@ -179,11 +158,11 @@
           [(unquote-splicing e) #'(unquote-splicing e)]
           [(tmpl0 ... tmpl1 ellipsis)
            (eq? (syntax->datum #'ellipsis) '...)
-           (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (fx+ level 1))])
+           (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (+ level 1))])
              #'(tmpl0 ...))]
           [(tmpl0 ... tmpl1 ellipsis . tmpl2)
             (eq? (syntax->datum #'ellipsis) '...)
-            (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (fx+ level 1))]
+            (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (+ level 1))]
                            [tmpl2 (rebuild-body #'tmpl2 level)])
               #'(tmpl0 ... . tmpl2))]
           [(tmpl0 ... tmpl1)
@@ -360,18 +339,18 @@
 (define meta-var->raw-meta-var
   (lambda (sym)
     (let ([s (symbol->string sym)])
-      (let f ([i (fx- (string-length s) 1)])
+      (let f ([i (- (string-length s) 1)])
         (cond
-          [(fx= i -1) sym]
+          [(= i -1) sym]
           [(or (char=? #\* (string-ref s i))
                (char=? #\^ (string-ref s i))
                (char=? #\? (string-ref s i)))
-           (f (fx- i 1))]
+           (f (- i 1))]
           [else (let f ([i i])
                   (cond
-                    [(fx= i -1) sym]
-                    [(char-numeric? (string-ref s i)) (f (fx- i 1))]
-                    [else (string->symbol (substring s 0 (fx+ i 1)))]))])))))
+                    [(= i -1) sym]
+                    [(char-numeric? (string-ref s i)) (f (- i 1))]
+                    [else (string->symbol (substring s 0 (+ i 1)))]))])))))
 
 (define-syntax partition-syn
   (lambda (x)
@@ -479,7 +458,7 @@
 (define simple-trace
   (lambda (name f)
     (lambda args
-      (parameterize ([trace-current-depth (fx+ (trace-current-depth) 1)])
+      (parameterize ([trace-current-depth (+ (trace-current-depth) 1)])
         (print-trace-entry (cons name args))
         (call-with-values
           (lambda () (apply f args))

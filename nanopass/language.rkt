@@ -17,24 +17,16 @@
 ;;;     - check to make sure metas are unique
 (provide define-language language->s-expression diff-languages prune-language define-pruned-language)
 
-(require (for-syntax srfi/1))
-(require (for-syntax racket/syntax))
-(require (for-syntax syntax/stx))
-(require (for-syntax "helpers.rkt"))
-(require (for-syntax "language-helpers.rkt"))
-(require (for-syntax "records.rkt"))
-(require (for-syntax "unparser.rkt"))
-(require (for-syntax "meta-parser.rkt"))
-(require "helpers.rkt")
+(require (for-syntax racket/syntax
+                     syntax/stx
+                     syntax/parse
+                     "helpers.rkt"
+                     "language-helpers.rkt"
+                     "records.rkt"
+                     "unparser.rkt"
+                     "meta-parser.rkt")
+          "helpers.rkt")
  
-#;(define-syntax define-language
-  (syntax-rules ()
-    [(_ ?L ?rest ...)
-     (let-syntax ([a (syntax-rules ()
-                       [(_ ?XL)
-                        (x-define-language ?XL ((... ...) ?rest) ...)])])
-       (a ?L))]))
-
 (define-syntax define-language
   (lambda (x) 
     ;; This function tests equality of tspecs
@@ -224,18 +216,22 @@
                    (make-terminal-alt #'s pretty pretty-procedure?)
                    (make-nonterminal-alt #'s pretty pretty-procedure?))])))
         (let f ([alt* alt*])
-          (syntax-case alt* ()
+          (syntax-parse alt*
             [() '()]
-            [((=> syn pretty) . alt*) (double-arrow? #'=>)
+            [((=> syn pretty) . alt*)
+             #:when (double-arrow? #'=>)
              (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
-            [(syn => pretty . alt*) (double-arrow? #'=>)
+            [(syn => pretty . alt*)
+             #:when (double-arrow? #'=>)
              (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
-            [((-> syn prettyf) . alt*) (arrow? #'->)
-             (with-implicit (-> with-extended-quasiquote)
-               (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*)))]
-            [(syn -> prettyf . alt*) (arrow? #'->)
-             (with-implicit (-> with-extended-quasiquote)
-               (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*)))]
+            [((-> syn prettyf) . alt*)
+             #:when (arrow? #'->)
+             #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
+             (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
+            [(syn -> prettyf . alt*)
+             #:when (arrow? #'->)
+             #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
+             (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
             [(syn . alt*) (cons (make-alt #'syn #f #f) (f #'alt*))]
             [_ (raise-syntax-error 'define-language "unexpected alt" alt*)]))))
 
@@ -285,7 +281,7 @@
                  (f #'rest base-lang found-entry
                    entry-ntspec
                    (if first-ntspec first-ntspec #'ntspec)
-                   terms (cons (cons* #'ntspec (stx->list #'(meta* ...)) #'a #'(a* ...)) ntspecs))]
+                   terms (cons (list* #'ntspec (stx->list #'(meta* ...)) #'a #'(a* ...)) ntspecs))]
                 [(x . rest) (raise-syntax-error 'define-language "unrecognized clause" #'x)]
                 [x (raise-syntax-error 'define-language
                      "unrecognized rest of language clauses" #'x)]))))
@@ -410,8 +406,8 @@
           [else
            (let* ([mv0 (car mv0*)] [mv0-sym (syntax->datum mv0)])
              (cond
-               [(find (lambda (mv1) (eq? (syntax->datum mv1) mv0-sym)) mv1*) =>
-                 (lambda (mv1) (f (cdr mv0*) (remq mv1 mv1*) (cons mv1 same) removed added))]
+               [(findf (lambda (mv1) (eq? (syntax->datum mv1) mv0-sym)) mv1*) =>
+                (lambda (mv1) (f (cdr mv0*) (remq mv1 mv1*) (cons mv1 same) removed added))]
                [else (f (cdr mv0*) mv1* same (cons mv0 removed) added)]))]))))
   (define diff-terminals
     (lambda (t0* t1*)
@@ -422,7 +418,7 @@
           [else
            (let* ([t0 (car t0*)] [t0-type (tspec-type t0)] [t0-type-sym (syntax->datum t0-type)])
              (cond
-               [(find (lambda (t1) (eq? (syntax->datum (tspec-type t1)) t0-type-sym)) t1*) =>
+               [(findf (lambda (t1) (eq? (syntax->datum (tspec-type t1)) t0-type-sym)) t1*) =>
                 (lambda (t1)
                   (with-syntax ([(meta-vars ...) (diff-meta-vars (tspec-meta-vars t0) (tspec-meta-vars t1))])
                     (f (cdr t0*) (remq t1 t1*) (cons #`(#,t0-type (meta-vars ...)) same) removed added)))]
@@ -436,7 +432,7 @@
           [else
            (let* ([a0 (car a0*)] [a0-syn (alt-syn a0)] [a0-syn-s-expr (syntax->datum a0-syn)])
              (cond
-               [(find (lambda (a1) (equal? (syntax->datum (alt-syn a1)) a0-syn-s-expr)) a1*) =>
+               [(findf (lambda (a1) (equal? (syntax->datum (alt-syn a1)) a0-syn-s-expr)) a1*) =>
                 (lambda (a1) (f (cdr a0*) (remq a1 a1*) (cons a0-syn same) removed added))]
                [else (f (cdr a0*) a1* same (cons (alt-syn a0) removed) added)]))]))))
   (define diff-nonterminals
@@ -452,7 +448,7 @@
           [else
            (let* ([nt0 (car nt0*)] [nt0-name (ntspec-name nt0)] [nt0-name-sym (syntax->datum nt0-name)])
              (cond
-               [(find (lambda (nt1) (eq? (syntax->datum (ntspec-name nt1)) nt0-name-sym)) nt1*) =>
+               [(findf (lambda (nt1) (eq? (syntax->datum (ntspec-name nt1)) nt0-name-sym)) nt1*) =>
                 (lambda (nt1)
                   (f (cdr nt0*) (remq nt1 nt1*)
                     (let ([alts (diff-alts (ntspec-alts nt0) (ntspec-alts nt1))])

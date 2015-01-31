@@ -859,7 +859,7 @@
                               (cond
                                 [(and (identifier? procexpr)
                                       (findf (lambda (pdesc)
-                                              (bound-identifier=? procexpr (pdesc-name pdesc)))
+                                               (bound-identifier=? procexpr (pdesc-name pdesc)))
                                         (pass-desc-pdesc* pass-desc))) =>
                                   (lambda (callee-pdesc)
                                     (if (pdesc-ok? callee-pdesc outid*)

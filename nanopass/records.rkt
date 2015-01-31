@@ -122,12 +122,12 @@
     [language->lang-predicates (-> language? identifier? syntax?)]
     [exists-alt? (-> alt? ntspec? (or/c false/c alt?))]))
 
-(require racket/fixnum)
-(require racket/syntax)
-(require syntax/stx)
-(require "helpers.rkt" "syntaxconvert.rkt")
-(require (for-template racket))
-(require (for-template (only-in "helpers.rkt" nanopass-record)))
+(require racket/syntax
+         syntax/stx
+         "helpers.rkt"
+         "syntaxconvert.rkt"
+         (for-template racket
+                       (only-in "helpers.rkt" nanopass-record)))
 
 (define-struct language
   (name entry-ntspec tspecs ntspecs (tag-mask #:mutable) (record #:mutable) (pred #:mutable))
@@ -555,14 +555,6 @@
                   lang-name))
               (set-language-tag-mask! lang (- (arithmetic-shift 1 bits) 1))
               (let ([ntalt-tag-bits (foldl (annotate-alt*! bits) 0 ntspec*)])
-                ;; currently the support for nanopass-records is disabled, so there is no need to have this here.
-                #;(unless (or (not np-bits)
-                (= (bitwise-and ntalt-tag-bits
-                     (fxreverse-bit-field (- (arithmetic-shift 1 np-bits) 1)
-                       0 (- (fixnum-width) 1)))
-                   0))
-                    (raise-syntax-error 'define-language "language production tags interfere with nanopass-record tags"
-                      lang-name))
                 (for-each annotate-all-pred! ntspec*)))))))))
 
 (define language->lang-records

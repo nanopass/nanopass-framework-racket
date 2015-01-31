@@ -5,9 +5,7 @@
 (provide/contract
   [convert-pattern (-> syntax? (values (or/c symbol? vector? pair? null?) (listof identifier?) (listof exact-nonnegative-integer?) (listof boolean?)))])
 
-(require racket/fixnum)
-(require syntax/stx)
-(require "helpers.rkt")
+(require syntax/stx "helpers.rkt")
 
 (define convert-pattern
   ; accepts pattern & keys
@@ -27,13 +25,13 @@
             (syntax-case p ()
               [(x dots)
                (ellipsis? #'dots)
-               (let-values ([(p flds lvls maybes) (cvt #'x (fx+ n 1) flds lvls maybes)])
+               (let-values ([(p flds lvls maybes) (cvt #'x (+ n 1) flds lvls maybes)])
                  (values (if (eq? p 'any) 'each-any (vector 'each p)) flds lvls maybes))]
               [(x dots y ... . z) 
                (ellipsis? #'dots)
                (let-values ([(z flds lvls maybes) (cvt #'z n flds lvls maybes)])
                  (let-values ([(y flds lvls maybes) (cvt* (stx->list #'(y ...)) n flds lvls maybes)])
-                   (let-values ([(x flds lvls maybes) (cvt #'x (fx+ n 1) flds lvls maybes)])
+                   (let-values ([(x flds lvls maybes) (cvt #'x (+ n 1) flds lvls maybes)])
                      (values `#(each+ ,x ,(reverse y) ,z) flds lvls maybes))))]
               [(maybe x)
                (and (identifier? #'x) (eq? (datum maybe) 'maybe))
