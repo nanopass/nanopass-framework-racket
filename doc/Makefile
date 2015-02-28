@@ -1,34 +1,13 @@
 # define default document pathname here
 # override on command line with 'make x=newdoc'
 x = user-guide
+latex = pdf-slatex
 
-# define latex processor: latex or pdflatex
-latex = pdflatex
+$(x).pdf: $(x).tex
+	$(latex) $(x).tex
 
-# define stex macro files here
-stexmacrofiles = 
+clean:
+	rm -f *.div *.aux *.log .Z*.tex *.dvi
 
-# list bibliography files here
-bib =
-
-# define index if an index is to be generated
-# index=yes
-
-doit: $x.pdf
-
-include ~/stex/Mf-stex
-
-# define or override suffixes here
-
-# define any additional targets here
-
-# define any dependencies here
-
-# define cleanup targets here:
-
-$(x).clean:
-
-$(x).reallyclean:
-
-$(x).reallyreallyclean:
-
+reallyclean:
+	rm -f *.pdf *.ps

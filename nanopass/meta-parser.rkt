@@ -17,143 +17,104 @@
 
 (define make-meta-parser
   (lambda (desc)
-    (let ([lang-name (language-name desc)]
-          [ntspec* (language-ntspecs desc)]
-          [tspec* (language-tspecs desc)])
-      (with-syntax ([cata? (gentemp)])
-        (with-syntax ([(ntspec-id ...) (map ntspec-name ntspec*)]
-                      [(term-pred-defn ...)
-                       (map (lambda (tspec)
-                              (make-meta-pred-defn
-                                (tspec-meta-pred tspec)
-                                (tspec-meta-vars tspec)))
-                         tspec*)]
-                      [(nonterm-pred-defn ...)
-                       (map (lambda (ntspec)
-                              (make-meta-pred-defn
-                                (ntspec-meta-pred ntspec)
-                                (ntspec-meta-vars ntspec)))
-                         ntspec*)]
-                      [(parse-name ...)
-                       (map ntspec-meta-parse-name ntspec*)]
-                      [(parse-proc ...)
-                       (map (lambda (ntspec)
-                              (make-meta-parse-proc desc tspec* ntspec*
-                                ntspec lang-name #'cata?))
-                         ntspec*)]
-                      [name (format-id lang-name "meta-parse-~a" lang-name)])
-          #`(lambda (ntspec-name stx input?)
-              (let ([cata? input?])
-                term-pred-defn ...
-                nonterm-pred-defn ...
-                (define parse-name parse-proc) ...
-                (case ntspec-name
-                  [(ntspec-id) (parse-name stx #t (not input?) #f)] ...
-                  [else (error '#,lang-name
-                          "unrecognized nonterminal passed to meta parser ~s"
-                          ntspec-name)]))))))))
-
-(define make-meta-pred-defn
-  (lambda (pred? meta*)
-    #`(define (#,pred? id)
-        (memq (meta-var->raw-meta-var (syntax->datum id))
-          (quote #,meta*)))))
-
-(define make-meta-parse-proc
-  (lambda (desc tspecs ntspecs ntspec lang-name cata?)
-    (define parse-field
-      (lambda (m level maybe?)
-        (cond
-          [(meta-name->tspec m tspecs) =>
-           (lambda (name)
-             (let f ([level level] [x m])
-               (if (= level 0)
-                   #`(meta-parse-term '#,name #,x #,cata? #,maybe?)
-                   #`(map (lambda (x)
-                            (if (nano-dots? x)
-                                (make-nano-dots #,(f (- level 1)
-                                                    #'(nano-dots-x x)))
-                                #,(f (- level 1) #'x)))
-                       #,x))))]
-          [(meta-name->ntspec m ntspecs) =>
-           (lambda (spec)
-             (with-syntax ([proc-name (ntspec-meta-parse-name spec)])
-               (let f ([level level] [x m])
-                 (if (= level 0)
-                     #`(proc-name #,x #t #t #,maybe?)
-                     #`(map (lambda (x)
-                              (if (nano-dots? x)
-                                  (make-nano-dots #,(f (- level 1)
-                                                      #'(nano-dots-x x)))
-                                  #,(f (- level 1) #'x)))
-                         #,x)))))]
-          [else (raise-syntax-error 'meta-parser "unrecognized meta variable"
-                  (language-name desc) m)])))
-    (define make-term-clause
-      (lambda (x)
-        (lambda (alt)
-          #`[(#,(tspec-meta-pred (terminal-alt-tspec alt)) #,x)
-             (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
-    (define make-nonterm-unquote
-      (lambda (x)
-        (lambda (alt)
-          #`[(#,(ntspec-meta-pred (nonterminal-alt-ntspec alt)) #,x)
-             (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
-    (define make-nonterm-clause
-      (lambda (x maybe?)
-        (lambda (alt)
-          (let ([spec (meta-name->ntspec (alt-syn alt) ntspecs)])
-            (unless spec
-              (raise-syntax-error 'meta-parser "unrecognized meta variable"
-                (language-name desc) (alt-syn alt)))
-            (with-syntax ([proc-name (ntspec-meta-parse-name spec)])
-              #`(proc-name #,x #f nested? #,maybe?))))))
-    (define make-pair-clause
-      (lambda (stx first-stx rest-stx)
-        (lambda (alt)
-          (let ([field-pats (pair-alt-pattern alt)])
-            (with-syntax ([(field-var ...) (pair-alt-field-names alt)])
-              (with-syntax ([(parsed-field ...)
-                             (map parse-field
-                               (syntax->list #'(field-var ...))
-                               (pair-alt-field-levels alt)
-                               (pair-alt-field-maybes alt))])
-                #`(#,(if (pair-alt-implicit? alt)
-                         #`(meta-syntax-dispatch
-                             #,stx '#,(datum->syntax #'lang-name field-pats))
-                         #`(and (eq? (syntax->datum #,first-stx)
-                                  '#,(stx-car (alt-syn alt)))
-                                (meta-syntax-dispatch #,rest-stx
-                                  '#,(datum->syntax #'lang-name field-pats))))
-                    => (lambda (ls)
-                         (apply
-                           (lambda (field-var ...)
-                             (make-nano-meta '#,alt
-                               (list parsed-field ...)))
-                           ls)))))))))
-    (define separate-syn
-      (lambda (ls)
-        (let f ([ls ls])
-          (if (null? ls)
-              (values '() '() '() '() '())
-              (let ([v (car ls)])
-                (let-values ([(pair* pair-imp* term* imp* nonimp*) (f (cdr ls))])
-                  (if (nonterminal-alt? v)
-                      (if (has-implicit-alt? (nonterminal-alt-ntspec v))
-                          (values pair* pair-imp* term* `(,v . ,imp*) nonimp*)
-                          (values pair* pair-imp* term* imp* `(,v . ,nonimp*)))
-                      (if (terminal-alt? v)
-                          (values pair* pair-imp* `(,v . ,term*) imp* nonimp*)
-                          (if (pair-alt-implicit? v)
-                              (values pair* `(,v . ,pair-imp*) term* imp* nonimp*)
-                              (values `(,v . ,pair*) pair-imp* term* imp* nonimp*))))))))))
-    (let-values ([(pair-alt* pair-imp-alt* term-alt* nonterm-imp-alt* nonterm-nonimp-alt*)
-                  (separate-syn (ntspec-alts ntspec))])
-      #;(pretty-print (list 'inf (syntax->datum pair-alt*)
-      (syntax->datum pair-imp-alt*)
-      (syntax->datum term-alt*)
-      (syntax->datum nonterm-imp-alt*)
-      (syntax->datum nonterm-nonimp-alt*)))
+    (define ntspec-meta-parsers (make-hasheq))
+    (define make-meta-parse-proc
+      (lambda (desc tspecs ntspecs ntspec lang-name cata?)
+        (define parse-field
+          (lambda (m level maybe?)
+            (cond
+              [(meta-name->tspec m tspecs) =>
+               (lambda (name)
+                 (let f ([level level] [x m])
+                   (if (= level 0)
+                       #`(meta-parse-term '#,name #,x #,cata? #,maybe?)
+                       #`(map (lambda (x)
+                                (if (nano-dots? x)
+                                    (make-nano-dots #,(f (- level 1)
+                                                         #'(nano-dots-x x)))
+                                    #,(f (- level 1) #'x)))
+                              #,x))))]
+              [(meta-name->ntspec m ntspecs) =>
+               (lambda (spec)
+                 (with-syntax ([proc-name (hash-ref ntspec-meta-parsers spec #f)])
+                   (let f ([level level] [x m])
+                     (if (= level 0)
+                         #`(proc-name #,x #t #t #,maybe?)
+                         #`(map (lambda (x)
+                                  (if (nano-dots? x)
+                                      (make-nano-dots #,(f (- level 1)
+                                                           #'(nano-dots-x x)))
+                                      #,(f (- level 1) #'x)))
+                                #,x)))))]
+              [else (raise-syntax-error 'meta-parser "unrecognized meta variable"
+                                        (language-name desc) m)])))
+        (define make-term-clause
+          (lambda (x)
+            (lambda (alt)
+              #`[(memq (meta-var->raw-meta-var (syntax->datum #,x))
+                       (quote #,(tspec-meta-vars (terminal-alt-tspec alt))))
+                 (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
+        (define make-nonterm-unquote
+          (lambda (x)
+            (lambda (alt)
+              #`[(memq (meta-var->raw-meta-var (syntax->datum #,x))
+                       (quote #,(ntspec-meta-vars (nonterminal-alt-ntspec alt))))
+                 (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
+        (define make-nonterm-clause
+          (lambda (x maybe?)
+            (lambda (alt)
+              (let ([spec (meta-name->ntspec (alt-syn alt) ntspecs)])
+                (unless spec
+                  (raise-syntax-error 'meta-parser "unrecognized meta variable"
+                                      (language-name desc) (alt-syn alt)))
+                (with-syntax ([proc-name (hash-ref ntspec-meta-parsers spec)])
+                  #`(proc-name #,x #f nested? #,maybe?))))))
+        (define make-pair-clause
+          (lambda (stx first-stx rest-stx)
+            (lambda (alt)
+              (let ([field-pats (pair-alt-pattern alt)])
+                (with-syntax ([(field-var ...) (pair-alt-field-names alt)])
+                  (with-syntax ([(parsed-field ...)
+                                 (map parse-field
+                                      (syntax->list #'(field-var ...))
+                                      (pair-alt-field-levels alt)
+                                      (pair-alt-field-maybes alt))])
+                    #`(#,(if (pair-alt-implicit? alt)
+                             #`(meta-syntax-dispatch
+                                 #,stx '#,(datum->syntax #'lang-name field-pats))
+                             #`(and (eq? (syntax->datum #,first-stx)
+                                         '#,(stx-car (alt-syn alt)))
+                                    (meta-syntax-dispatch #,rest-stx
+                                                          '#,(datum->syntax #'lang-name field-pats))))
+                       => (lambda (ls)
+                            (apply
+                              (lambda (field-var ...)
+                                (make-nano-meta '#,alt
+                                                (list parsed-field ...)))
+                              ls)))))))))
+        (define separate-syn
+          (lambda (ls)
+            (let f ([ls ls])
+              (if (null? ls)
+                  (values '() '() '() '() '())
+                  (let ([v (car ls)])
+                    (let-values ([(pair* pair-imp* term* imp* nonimp*) (f (cdr ls))])
+                      (if (nonterminal-alt? v)
+                          (if (has-implicit-alt? (nonterminal-alt-ntspec v))
+                              (values pair* pair-imp* term* `(,v . ,imp*) nonimp*)
+                              (values pair* pair-imp* term* imp* `(,v . ,nonimp*)))
+                          (if (terminal-alt? v)
+                              (values pair* pair-imp* `(,v . ,term*) imp* nonimp*)
+                              (if (pair-alt-implicit? v)
+                                  (values pair* `(,v . ,pair-imp*) term* imp* nonimp*)
+                                  (values `(,v . ,pair*) pair-imp* term* imp* nonimp*))))))))))
+        (let-values ([(pair-alt* pair-imp-alt* term-alt* nonterm-imp-alt* nonterm-nonimp-alt*)
+                      (separate-syn (ntspec-alts ntspec))])
+          #;(pretty-print (list 'inf (syntax->datum pair-alt*)
+          (syntax->datum pair-imp-alt*)
+          (syntax->datum term-alt*)
+          (syntax->datum nonterm-imp-alt*)
+          (syntax->datum nonterm-nonimp-alt*)))
       #`(lambda (stx error? nested? maybe?)
           (or (syntax-case stx ()
                 [(unquote id)
@@ -192,6 +153,33 @@
               #,@(map (make-nonterm-clause #'stx #'maybe?) nonterm-imp-alt*)
               (and error?
                    (raise-syntax-error #f "invalid pattern or template" stx)))))))
+
+    (let ([lang-name (language-name desc)]
+          [ntspec* (language-ntspecs desc)]
+          [tspec* (language-tspecs desc)])
+      (with-syntax ([cata? (generate-temporary "cata?")]
+                    [(ntspec-id ...) (map ntspec-name ntspec*)]
+                    [(parse-name ...)
+                     (map (lambda (ntspec)
+                            (let ([n (format-id lang-name "meta-parse-~a" (ntspec-name ntspec))])
+                              (hash-set! ntspec-meta-parsers ntspec n)
+                              n))
+                          ntspec*)])
+        (with-syntax ([(parse-proc ...)
+                       (map (lambda (ntspec)
+                              (make-meta-parse-proc desc tspec* ntspec*
+                                                    ntspec lang-name #'cata?))
+                            ntspec*)]
+                      [name (format-id lang-name "meta-parse-~a" lang-name)])
+          #`(lambda (ntspec-name stx input?)
+              (let ([cata? input?])
+                (define parse-name parse-proc) ...
+                (case ntspec-name
+                  [(ntspec-id) (parse-name stx #t (not input?) #f)] ...
+                  [else (error '#,lang-name
+                               "unrecognized nonterminal passed to meta parser ~s"
+                               ntspec-name)]))))))))
+
 
 ;; used to handle output of meta-parsers
 (define meta-parse-term

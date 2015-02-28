@@ -1,5 +1,5 @@
 \documentclass[letterpaper,10pt]{article}
-\usepackage{scheme}
+\usepackage{slatex}
 \usepackage{fullpage}
 
 \title{Nanopass Framework Documentation}
@@ -8,6 +8,13 @@
 \mathchardef\mhyphen="2D
 \parskip 6pt
 \parindent 0pt
+
+\setkeyword{define-language terminals extends entry maybe
+            define-pass definitions}
+\setconstant{: L0 L1 Expr make-explicit variable primitive datum constant
+  variable? symbol? memq datum? constant? number? char? string? parse- unparse-
+  language->s-expression map car cadr primitive?}
+\setvariable{d}
 \begin{document}
 \maketitle
 
@@ -20,7 +27,7 @@ of new passes anywhere in the compiler.
 
 \subsection{Examples}
 The most complete, public example of the nanopass framework in use is in the
-tests/compiler.ss file.
+\texttt{tests/compiler.ss} file.
 This is the start of a compiler implementation for a simplified subset of
 Scheme, used in a course on compiler implementation.
 
@@ -31,7 +38,7 @@ languages.
 A language definition for a simple variant of the Scheme programming language
 might look like:
 
-\schemedisplay
+\begin{schemedisplay}
 (define-language L0
   (terminals
     (variable (x))
@@ -50,7 +57,7 @@ might look like:
     (let ([x* e*] ...) body* ... body)
     (letrec ([x* e*] ...) body* ... body)
     (e0 e1 ...)))
-\endschemedisplay
+\end{schemedisplay}
 
 The \scheme{L0} language consists of a set of terminals (listed in in the
 \scheme{terminals} form) and a signle non-terminal \scheme{Expr}.
@@ -72,7 +79,7 @@ We might decided to represent variables as symbols, select a small list of
 primitives, represent datum as any Scheme value, and limit constants to those
 things that have a syntax that does not require a quote:
 
-\schemedisplay
+\begin{schemedisplay}
 (define variable?
   (lambda (x)
     (symbol? x)))
@@ -92,7 +99,7 @@ things that have a syntax that does not require a quote:
     (or (number? x)
         (char? x)
         (string? x))))
-\endschemedisplay
+\end{schemedisplay}
 
 The \scheme{L0} language also defines one non-terminal \scheme{Expr}.
 Non-terminals start with a name (\scheme{Expr}) followed by a list of
@@ -122,7 +129,7 @@ This will work fine, but we might want to simply define what changes.
 The nanopass framework provides a syntax to allow a language to be defined as
 an extension to an already defined language:
 
-\schemedisplay
+\begin{schemedisplay}
 (define-language L1
   (extends L0)
   (terminals
@@ -136,7 +143,7 @@ an extension to an already defined language:
     (+ (lambda (x* ...) body)
        (let ([x* e*] ...) body)
        (letrec ([x* e*] ...) body))))
-\endschemedisplay
+\end{schemedisplay}
 
 The newly defined language uses the \scheme{extends} form to indicate that
 \scheme{L1} is an extension of the existing language \scheme{L0}.
@@ -149,26 +156,35 @@ It is also possible to add new non-terminals, by simply including a new
 non-terminal form with a single \scheme{+} form that adds all of the
 productions for the new non-terminal.
 
-\subsection{The \protect\scheme{define-language} form}
+%% work around for \protect\scheme{define-language} not working in slatex
+\begin{schemeregion}
+\newsavebox{\deflangfirst}
+\sbox{\deflangfirst}{
+\begin{schemebox}
+define-language
+\end{schemebox}}
+\subsection{The \deflangfirst form}
+\deflangfirst
+\end{schemeregion}
 
 The full syntax for \scheme{define-language} is as follows:
 
-\schemedisplay
-(define-language \var{language-name} \var{clause} ...)
-\endschemedisplay
+\begin{schemedisplay}
+(define-language language-name clause ...)
+\end{schemedisplay}
 
-Where \var{clause} is an extension clause, a entry clause, a terminals clause, or a non-terminal clause.
+Where \scheme{clause} is an extension clause, a entry clause, a terminals clause, or a non-terminal clause.
 
 \paragraph{Extension clause.}
 The extension clause indicates that new language is an extension of an existing
 language.
 The extension clause has the following form:
 
-\schemedisplay
-(extends \var{language-name})
-\endschemedisplay
+\begin{schemedisplay}
+(extends language-name)
+\end{schemedisplay}
 
-where \var{language-name} is the name of an already defined language.
+where \scheme{language-name} is the name of an already defined language.
 Only one extension clause can be specified in a language definition. 
 
 \paragraph{Entry clause.}
@@ -180,11 +196,11 @@ This default can be overridden in a pass definition, as described in
 Section~\ref{sec:pass-syntax}.
 The entry clause has the following form:
 
-\schemedisplay
-(entry \var{non-terminal-name})
-\endschemedisplay
+\begin{schemedisplay}
+(entry non-terminal-name)
+\end{schemedisplay}
 
-where \var{non-terminal-name} corresponds to one of the non-terminals specified
+where \scheme{non-terminal-name} corresponds to one of the non-terminals specified
 in this language (or the language it extends from).
 Only one entry clause can be specified in a language definition.
 
@@ -197,59 +213,59 @@ The terminals clause has the following form:
 In a language that does not extend from a base language, the
 terminals clause has the following form:
 
-\schemedisplay
-(terminals \var{terminal-clause} ...)
-\endschemedisplay
+\begin{schemedisplay}
+(terminals terminal-clause ...)
+\end{schemedisplay}
 
-where \var{terminal-clause} has one of the following forms:
+where \scheme{terminal-clause} has one of the following forms:
 
-\schemedisplay
-(\var{terminal-name} (\var{meta-var} ...))
-(=> (\var{terminal-name} (\var{meta-var} ...)) \var{prettifier})
-(\var{terminal-name} (\var{meta-var} ...)) => \var{prettifier}
-\endschemedisplay
+\begin{schemedisplay}
+(terminal-name (meta-var ...))
+(=> (terminal-name (meta-var ...)) prettifier)
+(terminal-name (meta-var ...)) => prettifier
+\end{schemedisplay}
 
 Here,
 \begin{itemize}
-\item \var{terminal-name} is the name of the terminal and a corresponding
-\scheme{\var{terminal-name}?} predicate function exists to determine if a
+\item \scheme{terminal-name} is the name of the terminal and a corresponding
+\scheme{terminal-name}\scheme{?} predicate function exists to determine if a
 Scheme object is of this type when checking the output of a pass,
-\item \var{meta-var} is the name of a meta-variable used for referring to this
+\item \scheme{meta-var} is the name of a meta-variable used for referring to this
 terminal type in language and pass definitions,
-\item and \var{prettifier} is an expression that evaluates to a function of one
+\item and \scheme{prettifier} is an expression that evaluates to a function of one
 argument used during when the language unparser is called in ``pretty'' mode to
 produce pretty, S-expression representation.
 \end{itemize}
 The final form is syntactic sugar for the form above it.
-When the \var{prettifier} is omitted, no processing will be done on the
+When the \scheme{prettifier} is omitted, no processing will be done on the
 terminal when the unparser runs.
 
 When a language derives from a base language, the terminal clause has the following form:
 
-\schemedisplay
-(terminals \var{extended-terminal-clause} ...)
-\endschemedisplay
+\begin{schemedisplay}
+(terminals extended-terminal-clause ...)
+\end{schemedisplay}
 
-where \var{extended-terminal-clause} has one of the following forms:
+where \scheme{extended-terminal-clause} has one of the following forms:
 
-\schemedisplay
-(+ \var{terminal-clause} ...)
-(- \var{terminal-clause} ...)
-\endschemedisplay
+\begin{schemedisplay}
+(+ terminal-clause ...)
+(- terminal-clause ...)
+\end{schemedisplay}
 
 The \scheme{+} form indicates terminals that should be added to the new language.
 The \scheme{-} form indicates terminals that should be removed from the list in
 the old language when producing the new language.
 Terminals not mentioned in a terminals clause will be copied into the new
 language, unchanged.
-\emph{Note} that adding and removing \var{meta-var}s from a terminal currently requires removing the terminal type and re-adding it.
+\emph{Note} that adding and removing \scheme{meta-var}s from a terminal currently requires removing the terminal type and re-adding it.
 This can be done in the same step with a terminal clause like the following:
 
-\schemedisplay
+\begin{schemedisplay}
 (terminals
   (- (variable (x)))
   (+ (variable (x y))))
-\endschemedisplay
+\end{schemedisplay}
 
 \paragraph{Non-terminals clause.}
 The non-terminals clause specifies the valid productions in a language.
@@ -258,76 +274,76 @@ productions.
 When the language is not extended from a base language the non-terminal clause
 has the following form:
 
-\schemedisplay
-(\var{non-terminal-name} (\var{meta-var} ...)
-  \var{production-clause}
+\begin{schemedisplay}
+(non-terminal-name (meta-var ...)
+  production-clause
   ...)
-\endschemedisplay
+\end{schemedisplay}
 
-where \var{non-terminal-name} is an identifier that names the non-terminal,
-\var{meta-var} is the name of a meta-variable used when referring to this
-non-terminal in a language and pass definitions, and \var{production-clause}
+where \scheme{non-terminal-name} is an identifier that names the non-terminal,
+\scheme{meta-var} is the name of a meta-variable used when referring to this
+non-terminal in a language and pass definitions, and \scheme{production-clause}
 has one of the following forms:
 
-\schemedisplay
-\var{terminal-meta-var}
-\var{non-terminal-meta-var}
-\var{production-s-expression}
-(\var{keyword} . \var{production-s-expression})
-\endschemedisplay
+\begin{schemedisplay}
+terminal-meta-var
+non-terminal-meta-var
+production-s-expression
+(keyword . production-s-expression)
+\end{schemedisplay}
 
 Here,
 \begin{itemize}
-\item \var{terminal-meta-var} is a terminal meta-variable that is a stand-alone
+\item \scheme{terminal-meta-var} is a terminal meta-variable that is a stand-alone
 production for this non-terminal,
-\item \var{non-terminal-meta-var} is a non-terminal meta-variable that
+\item \scheme{non-terminal-meta-var} is a non-terminal meta-variable that
 indicates any form allowed by the specified non-terminal is also allowed by
 this non-terminal,
-\item \var{keyword} is an identifier that must be matched exactly when parsing
+\item \scheme{keyword} is an identifier that must be matched exactly when parsing
 an S-expression representation, language input pattern, or language output
 template, and
-\item \var{production-s-expression} is an S-expression that represents a
+\item \scheme{production-s-expression} is an S-expression that represents a
 pattern for language, and has the following form:
 \end{itemize}
 
-\schemedisplay
-\var{meta-variable}
-(maybe \var{meta-variable})
-(\var{production-s-expression} \var{ellipsis})
-(\var{production-s-expression} \var{ellipsis} \var{production-s-expression} ... . \var{production-s-expression})
-(\var{production-s-expression} . \var{production-s-expression})
+\begin{schemedisplay}
+meta-variable
+(maybe meta-variable)
+(production-s-expression ellipsis)
+(production-s-expression ellipsis production-s-expression ... . production-s-expression)
+(production-s-expression . production-s-expression)
 () 
-\endschemedisplay
+\end{schemedisplay}
 
 Here,
 \begin{itemize}
-\item \var{meta-variable} is any terminal or non-terminal meta-variable,
+\item \scheme{meta-variable} is any terminal or non-terminal meta-variable,
 extended with an arbitrary number of digits, followed by an arbitrary
 combination of \scheme{*}, \scheme{?}, or \scheme{^} characters, for example,
 if the meta-variable is \scheme{e} then \scheme{e1}, \scheme{e*}, \scheme{e?},
 \scheme{e4*?} are all valid meta-variable expressions;
-\item \scheme{(maybe \var{meta-variable})} indicates that an element in the
+\item \scheme{(maybe }\scheme{meta-variable}\scheme{)} indicates that an element in the
 production is either of the type of the meta-variable or bottom (represented by
 \scheme{#f});
-\item and \var{ellipsis} is the literal \scheme{...} and indicates a list of
-the \var{production-s-expression} that proceeds it is expected.
+\item and \scheme{ellipsis} is the literal \scheme{...} and indicates a list of
+the \scheme{production-s-expression} that proceeds it is expected.
 \end{itemize}
 Thus, Scheme language forms such as \scheme{let} can be represented as a
 language production as:
 
-\schemedisplay
+\begin{schemedisplay}
 (let ([x* e*] ...) body* ... body)
-\endschemedisplay
+\end{schemedisplay}
 
-where \scheme{let} is the \var{keyword}, \scheme{x*} is a meta-variable that
+where \scheme{let} is the \scheme{keyword}, \scheme{x*} is a meta-variable that
 indicates a list of variables, \scheme{e*} \& \scheme{body*} are meta-variables
 that indicate a list of expressions, and \scheme{body} is a meta-variable that
 indicates a single expression.
 Something similar to the named-let form could also be represented as:
 
-\schemedisplay
+\begin{schemedisplay}
 (let (maybe x) ([x* e*] ...) body* ... body)
-\endschemedisplay
+\end{schemedisplay}
 
 though this would be slightly different from the normal named let form, in that
 the non-named form would then need an explicit \scheme{#f} to indicate no name
@@ -336,18 +352,18 @@ was specified.
 When a language extends from a base language the non-terminal clause has a
 slightly different form:
 
-\schemedisplay
-(\var{non-terminal-name} (\var{meta-var} ...)
-  \var{extended-production-clause}
+\begin{schemedisplay}
+(non-terminal-name (meta-var ...)
+  extended-production-clause
   ...)
-\endschemedisplay
+\end{schemedisplay}
 
-where \var{extended-production-clause} has the following form:
+where \scheme{extended-production-clause} has the following form:
 
-\schemedisplay
-(+ \var{production-clause} ...)
-(- \var{production-clause} ...)
-\endschemedisplay
+\begin{schemedisplay}
+(+ production-clause ...)
+(- production-clause ...)
+\end{schemedisplay}
 
 The \scheme{+} form indicates non-terminal productions that should be added to
 the non-terminal in the new language.
@@ -361,33 +377,43 @@ non-terminal will be dropped in the new language.
 Conversely, new non-terminals can be added by naming the new non-terminal and
 using the \scheme{+} form to specify the productions of the new non-terminal.
 
-\subsection{Products of \protect\scheme{define-language}}
+%% work around for \protect\scheme{define-language} not working in slatex
+\begin{schemeregion}
+\newsavebox{\deflangsecond}
+\sbox{\deflangsecond}{
+\begin{schemebox}
+define-language
+\end{schemebox}}
+\subsection{Products of \deflangsecond}
+\deflangsecond
+\end{schemeregion}
+
 
 The \scheme{define-language} form produces three user-visible objects:
 \begin{itemize}
-\item a parser (named \scheme{parse-\var{language name}}) that can be used to
+\item a parser (named \scheme{parse-}\scheme{language name}) that can be used to
 parse an S-expression into a record-based representation that is used
 internally by the nanopass framework;
-\item an unparser (named \scheme{unparse-\var{language name}}) that can be used
+\item an unparser (named \scheme{unparse-}\scheme{language name}) that can be used
 to unparse a record-based representation back into an S-expression; and
-\item a language definition, bound to the specified \var{language-name}.
+\item a language definition, bound to the specified \scheme{language-name}.
 \end{itemize}
 
-The language definition is used when the \var{language-name} is specified as
+The language definition is used when the \scheme{language-name} is specified as
 the base of a new language definition and in the definition of a pass.
-The \var{language-name} can also be used with the
+The \scheme{language-name} can also be used with the
 \scheme{language->s-expression} to retrieve a pretty-printed version of the
 full language definition.
 This can be helpful when using extended languages, such as in the case of
 \scheme{L1}:
 
-\schemedisplay
+\begin{schemedisplay}
 (language->s-expression L1)
-\endschemedisplay
+\end{schemedisplay}
 
 Will return: 
 
-\schemedisplay
+\begin{schemedisplay}
 (define-language L1
   (terminals
     (variable (x))
@@ -403,7 +429,7 @@ Will return:
     (begin e* ... e)
     (if e0 e1 e2)
     (e0 e1 ...)))
-\endschemedisplay
+\end{schemedisplay}
 
 \section{Defining Passes}
 
@@ -422,7 +448,7 @@ This pass will need to:
 We can define a pass called \scheme{make-explicit} to make all of these forms
 explicit.
 
-\schemedisplay
+\begin{schemedisplay}
 (define-pass make-explicit : L0 (ir) -> L1 ()
   (definitions)
   (Expr : Expr (ir) -> Expr ()
@@ -441,7 +467,7 @@ explicit.
      `(letrec ([,x* ,e*] ...) (begin ,body* ... ,body))]
     [(,[e0] ,[e1] ...) `(,e0 ,e1 ...)])
   (Expr ir))
-\endschemedisplay
+\end{schemedisplay}
 
 The pass definition starts with a name (in this case \scheme{make-explicit})
 and a signature.
@@ -490,7 +516,7 @@ Since the input and output languages are defined, the \scheme{define-pass}
 macro can also automatically generate these clauses.
 So let's try again:
 
-\schemedisplay
+\begin{schemedisplay}
 (define-pass make-explicit : L0 (ir) -> L1 ()
   (Expr : Expr (ir) -> Expr ()
     [,c `(quote ,c)]
@@ -501,19 +527,29 @@ So let's try again:
      `(let ([,x* ,e*] ...) (begin ,body* ... ,body))]
     [(letrec ([,x* ,[e*]] ...) ,[body*] ... ,[body])
      `(letrec ([,x* ,e*] ...) (begin ,body* ... ,body))]))
-\endschemedisplay
+\end{schemedisplay}
 
 This is a much simpler way to write the pass, though both are valid ways of
 writing the pass.
 
-\subsection{The \protect\scheme{define-pass} syntactic form}
+%% work around for \protect\scheme{define-pass} not working in slatex
+\begin{schemeregion}
+\newsavebox{\defpass}
+\sbox{\defpass}{
+\begin{schemebox}
+define-pass
+\end{schemebox}}
+\subsection{The \defpass syntactic form}
+\defpass
+\end{schemeregion}
 
-\schemedisplay
-(define-pass \var{name} : \var{lang-specifier} (\var{fml} ...) -> \var{lang-specifier} (\var{extra-return-val} ...)
-  \var{definitions-clause}
-  \var{processor} ...
-  \var{body-expr})
-\endschemedisplay
+
+\begin{schemedisplay}
+(define-pass name : lang-specifier (fml ...) -> lang-specifier (extra-return-val ...)
+  definitions-clause
+  processor ...
+  body-expr)
+\end{schemedisplay}
 
 \[
 \begin{array}{rcl}
@@ -549,20 +585,29 @@ guard &::=& {\hbox{\tt (guard}}\ expr\ expr \ldots {\hbox{\tt )}}
 \noindent
 Where 
 \begin{itemize}
-\item \var{name} is the name of the pass,
-\item \var{fml} is an identifier representing a formal argument,
-\item \var{language-name} is an identifier corresponding to a defined language,
-\item \var{non-terminal-name} is a name in that language,
-\item \var{extra-return-val} and \var{return-val} are Scheme expressions,
-\item \var{expr} is a Scheme expression that can contain a
-\var{quasiquote-expr}, 
-\item \var{defn} is a Scheme definition, and
-\item \var{body-expr} is a Scheme expression; where
-\item \var{quasiquote-expr} is a Scheme quasiquote expression that corresponds
+\item \scheme{name} is the name of the pass,
+\item \scheme{fml} is an identifier representing a formal argument,
+\item \scheme{language-name} is an identifier corresponding to a defined language,
+\item \scheme{non-terminal-name} is a name in that language,
+\item \scheme{extra-return-val} and \scheme{return-val} are Scheme expressions,
+\item \scheme{expr} is a Scheme expression that can contain a
+\scheme{quasiquote-expr}, 
+\item \scheme{defn} is a Scheme definition, and
+\item \scheme{body-expr} is a Scheme expression; where
+\item \scheme{quasiquote-expr} is a Scheme quasiquote expression that corresponds
 to a form of the output non-terminal specified in a processor.
 \end{itemize}
 
-\subsection{The \protect\scheme{quasiquote} clause}
+%% work around for \protect\scheme{quasiquote} not working in slatex
+\begin{schemeregion}
+\newsavebox{\qq}
+\sbox{\qq}{
+\begin{schemebox}
+quasiquote
+\end{schemebox}}
+\subsection{The \qq clause}
+\qq
+\end{schemeregion}
 
 The \scheme{define-pass} macro re-binds the Scheme quasiquote to use as a way
 to construct records in the output language.
@@ -581,9 +626,9 @@ fact, arbitrary S-expressions.
 For instance, if we look at the S-expression for a \scheme{let} in \scheme{L1}
 we see:
 
-\schemedisplay
+\begin{schemedisplay}
 (let ([x* e*] ...) body)
-\endschemedisplay
+\end{schemedisplay}
 
 This will create a record that expects three parts:
 \begin{itemize}
@@ -595,24 +640,24 @@ This will create a record that expects three parts:
 If this were simply an S-expression, we might imagine that we could construct
 an output record as:
 
-\schemedisplay
+\begin{schemedisplay}
 ; binding*: is ([x0 e0] ... [xn en])
 (let ([binding* (f ---)])
   `(let (,binding* ...) ,body))
-\endschemedisplay
+\end{schemedisplay}
 
 However, this will not work because the infrastructure does not know how to
 destructure the \scheme{binding*} into its parts.
 Instead it is necessary to destructure the \scheme{binding*} list before
 including it in the quasiquoted expression:
 
-\schemedisplay
+\begin{schemedisplay}
 ; binding*: is ([x0 e0] ... [xn en])
 (let ([binding* (f ---)])
   (let ([x* (map car binding*)]
         [e* (map cadr binding*)])
     `(let ([,x* ,e*] ...) ,body)))
-\endschemedisplay
+\end{schemedisplay}
 
 \subsection{Auto-generated clauses}
 
@@ -691,13 +736,13 @@ cata\mhyphen morphism &::=& {\hbox{\tt ,[}}identifier \ldots {\hbox{\tt ]}}\\
 \end{array}
 \]
 
-Where \var{expr} is a Scheme expression, \var{func-expr} is an expression that
-results in a function, and \var{identifier} is an identifier that will be bound
+Where \scheme{expr} is a Scheme expression, \scheme{func-expr} is an expression that
+results in a function, and \scheme{identifier} is an identifier that will be bound
 to the input subexpression when it is on the left of the \scheme{-} and the return
 value(s) of the func when it is on the right side.
 
-When the \var{func-expr} is not specified, \scheme{define-pass} attempts to find or
-auto-generate an appropriate processor.  When the \var{func-expr} is the name of
+When the \scheme{func-expr} is not specified, \scheme{define-pass} attempts to find or
+auto-generate an appropriate processor.  When the \scheme{func-expr} is the name of
 a processor, the input non-terminal, output non-terminal, and number of input
 expressions and return values will be checked to ensure they match.
 

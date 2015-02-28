@@ -32,6 +32,7 @@
 
 (define-syntax x-define-parser
   (lambda (x)
+    (define ntspec-parsers (make-hasheq))
     (define make-parse-proc
       (lambda (desc tspecs ntspecs ntspec lang-name)
         (define parse-field
@@ -40,7 +41,7 @@
               [(meta-name->tspec m tspecs) m]
               [(meta-name->ntspec m ntspecs) =>
                (lambda (spec)
-                 (with-syntax ([proc-name (ntspec-parse-name spec)])
+                 (with-syntax ([proc-name (hash-ref ntspec-parsers spec #f)])
                    (let f ([level level] [x m])
                      (if (= level 0)
                          (if maybe? #`(and #,x (proc-name #,x #t))  #`(proc-name #,x #t))
@@ -63,7 +64,7 @@
               (unless spec
                 (raise-syntax-error 'parser "unrecognized meta variable"
                   (language-name desc) (alt-syn alt)))
-              (with-syntax ([proc-name (ntspec-parse-name spec)])
+              (with-syntax ([proc-name (hash-ref ntspec-parsers spec #f)])
                 #`(proc-name s-exp #f)))))
 
         (define make-pair-clause
@@ -130,25 +131,25 @@
                  [tspecs (language-tspecs desc)])
             (when (null? ntspecs)
               (error 'define-parser "unable to generate parser for language without non-terminals"))
-            (with-syntax ([(entry-name parse-name ...)
-                           (map ntspec-parse-name ntspecs)]
-                          [(entry-proc parse-proc ...)
-                            (map (lambda (ntspec)
-                                   (make-parse-proc desc tspecs ntspecs ntspec lang-name))
-                              ntspecs)])
-              (with-syntax ([entry-proc-name 
-                             (if ntname
-                                 (format-id lang-name "parse-~a" ntname)
-                                 #'entry-name)]
-                            [parser-name parser-name])
-                (with-syntax ([(lam-exp ...) (if trace? #'(trace-lambda parser-name) #'(lambda))]
-                              [def (if trace? #'trace-define #'define)])
-                  #'(define-who parser-name
-                      (lam-exp ... (s-exp)
-                        (def entry-name entry-proc)
-                        (def parse-name parse-proc)
-                        ...
-                        (entry-proc-name s-exp #t))))))))))
+            (with-syntax ([(parse-name ...)
+                           (map (lambda (ntspec)
+                                  (let ([pred (format-id lang-name "parse-~a" (ntspec-name ntspec))])
+                                    (hash-set! ntspec-parsers ntspec pred)
+                                    pred))
+                                ntspecs)])
+              (with-syntax ([(parse-proc ...)
+                             (map (lambda (ntspec)
+                                    (make-parse-proc desc tspecs ntspecs ntspec lang-name))
+                                  ntspecs)])
+                (with-syntax ([entry-proc-name (format-id lang-name "parse-~a" ntname)]
+                              [parser-name parser-name])
+                  (with-syntax ([(lam-exp ...) (if trace? #'(trace-lambda parser-name) #'(lambda))]
+                                [def (if trace? #'trace-define #'define)])
+                    #'(define-who parser-name
+                        (lam-exp ... (s-exp)
+                          (def parse-name parse-proc)
+                          ...
+                          (entry-proc-name s-exp #t)))))))))))
     (syntax-case x (trace)
       [(_ parser-name lang)
        (and (identifier? #'parser-name) (identifier? #'lang))

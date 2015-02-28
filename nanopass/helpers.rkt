@@ -22,7 +22,6 @@
   ;; things for dealing with syntax and idetnfieris
   (contract-out
     [all-unique-identifiers? (-> (listof syntax?) boolean?)]
-    [gentemp (-> identifier?)]
     [bound-id-member? (-> identifier? (listof identifier?) boolean?)]
     [bound-id-union (-> (listof identifier?) (listof identifier?) (listof identifier?))])
   partition-syn datum
@@ -378,10 +377,6 @@
                                             "no home for ~s"
                                             (car ls))]))))])
              e0 e1 ...))])))
-  
-(define gentemp
-  (lambda ()
-    (car (generate-temporaries '(#'t))))) 
   
 (define bound-id-member? 
   (lambda (id id*)

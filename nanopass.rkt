@@ -7,7 +7,8 @@
   language->s-expression extends entry terminals nongenerative-id
   #;define-nanopass-record-types diff-languages define-language-node-counter
   prune-language define-pruned-language
-  with-extended-quasiquote with-racket-quasiquote)
+  with-extended-quasiquote with-racket-quasiquote
+  #;lookup-language-pred #;lookup-language-meta-pred)
 
 (require "nanopass/language.rkt")
 (require "nanopass/parser.rkt")

@@ -15,70 +15,21 @@
 ;;;   - checking for language output to make sure constructed languages are
 ;;;     internally consistent:
 ;;;     - check to make sure metas are unique
-(provide define-language language->s-expression diff-languages prune-language define-pruned-language)
+(provide define-language language->s-expression diff-languages prune-language
+         define-pruned-language)
+  
+(require  "helpers.rkt"
+          "unparser.rkt"
+          (for-syntax racket/syntax
+                      syntax/stx
+                      syntax/parse
+                      "helpers.rkt"
+                      "language-helpers.rkt"
+                      "records.rkt"
+                      "meta-parser.rkt"))
 
-(require (for-syntax racket/syntax
-                     syntax/stx
-                     syntax/parse
-                     "helpers.rkt"
-                     "language-helpers.rkt"
-                     "records.rkt"
-                     "unparser.rkt"
-                     "meta-parser.rkt")
-          "helpers.rkt")
- 
 (define-syntax define-language
   (lambda (x) 
-    ;; This function tests equality of tspecs
-    ;; tspecs are considered to be equal when the lists of metas are 
-    ;; identical (same order too) and when they represent the same terminal 
-    ; TODO: think about a better way of doing equality here... right now we get a weird
-    ; error message when the original had (fixnum (x y z)) and our extension has (fixnum (x y))
-    (define tspec=?
-      (lambda (ts1 ts2)
-        (and (equal? (map syntax->datum (tspec-meta-vars ts1)) 
-               (map syntax->datum (tspec-meta-vars ts2)))
-             (eq? (syntax->datum (tspec-type ts1)) 
-               (syntax->datum (tspec-type ts2)))))) 
-
-    ;; This function tests the equality of ntspecs
-    ;; ntspecs are considered to be equal when they are ntspecs of 
-    ;; the same nonterminal and the intersection of their alternatives is 
-    ;; not null
-    (define ntspec=?
-      (lambda (p1 p2)
-        (eq? (syntax->datum (ntspec-name p1))
-          (syntax->datum (ntspec-name p2)))))
-
-    ;; It is enough to check for same syntax because the record-decls of the
-    ;; new alternative will be different because they are parsed again
-    (define alt=?
-      (lambda (a1 a2)
-        (equal? (syntax->datum (alt-syn a1)) (syntax->datum (alt-syn a2)))))
-
-    (define fresh-tspec
-      (lambda (tspec)
-        (make-tspec
-          (tspec-type tspec)
-          (tspec-meta-vars tspec)
-          (tspec-handler tspec))))
-
-    (define-who fresh-alt
-      (lambda (alt)
-        ((cond
-           [(pair-alt? alt) make-pair-alt]
-           [(terminal-alt? alt) make-terminal-alt]
-           [(nonterminal-alt? alt) make-nonterminal-alt]
-           [else (error who "unexpected alt" alt)])
-          (alt-syn alt) (alt-pretty alt) (alt-pretty-procedure? alt))))
-
-    (define fresh-ntspec
-      (lambda (ntspec)
-        (make-ntspec
-          (ntspec-name ntspec)
-          (ntspec-meta-vars ntspec)
-          (map fresh-alt (ntspec-alts ntspec)))))
-
     ;; Doing a little extra work here to make sure that we are able to track
     ;; errors.  The basic idea is that we want to go through the list of
     ;; existing tspecs, and when we keep them, make a new copy (so that
@@ -103,7 +54,7 @@
                    [else (g (cdr os-) o (cons (car os-) checked-os-))]))])))))
 
     (define freshen-tspecs
-      (freshen-objects tspec=? fresh-tspec "unrecognized tspecs" tspec-type))
+      (freshen-objects tspec=? values "unrecognized tspecs" tspec-type))
     (define freshen-alts
       (freshen-objects alt=? fresh-alt "unrecognized alts" alt-syn))
 
@@ -141,10 +92,7 @@
                        (let ([alts (freshen-alts (ntspec-alts ntspec) (ntspec-alts ntspec-))])
                          (if (null? alts)
                              (freshen-ntspecs (cdr ntspecs) (append remaining (cdr ntspecs-)))
-                             (cons (make-ntspec
-                                     (ntspec-name ntspec-)
-                                     (ntspec-meta-vars ntspec-)
-                                     alts)
+                             (cons (fresh-ntspec ntspec alts)
                                (freshen-ntspecs (cdr ntspecs) (append remaining (cdr ntspecs-))))))
                        (g (cdr ntspecs-) ntspec (cons (car ntspecs-) remaining))))))])))
 
@@ -159,24 +107,24 @@
                  (let ([ntspec+ (car ntspecs+)])
                    (if (ntspec=? ntspec+ ntspec)
                        (let ([alts (add-alts (ntspec-alts ntspec) (ntspec-alts ntspec+))])
-                         (cons (make-ntspec
-                                 (ntspec-name ntspec+)
-                                 (ntspec-meta-vars ntspec+)
-                                 alts)
+                         (cons (fresh-ntspec ntspec alts)
                            (add-ntspecs (cdr ntspecs) (append remaining (cdr ntspecs+)))))
                        (g (cdr ntspecs+) ntspec (cons (car ntspecs+) remaining))))))])))
 
     (define partition-terms
-      (lambda (terms)
-        (let f ([terms terms] [terms+ '()] [terms- '()])
-          (syntax-case terms ()
+      (lambda (id terms)
+        (let loop ([terms terms] [terms+ '()] [terms- '()])
+          (syntax-parse terms
+            #:datum-literals (+ -)
             [() (values terms+ terms-)]
-            [((+ t* ...) terms ...) (plus? #'+)
-             (f #'(terms ...)
-               (append terms+ (parse-terms #'(t* ...))) terms-)]
-            [((- t* ...) terms ...) (minus? #'-)
-             (f #'(terms ...) terms+
-               (append terms- (parse-terms #'(t* ...))))]))))
+            [((+ . ts) . terms)
+             (loop #'terms
+                   (append terms+ (parse-terms id #'ts))
+                   terms-)]
+            [((- . ts) . terms)
+             (loop #'terms
+                   terms+
+                   (append terms- (parse-terms id #'ts.)))]))))
 
     (define partition-ntspecs
       (lambda (ntspecs terminal-meta*)
@@ -236,18 +184,22 @@
             [_ (raise-syntax-error 'define-language "unexpected alt" alt*)]))))
 
     (define parse-terms
-      (lambda (term*)
-        (syntax-case term* ()
-          [() '()]
-          [((=> (t (tmeta* ...)) handler) term* ...) (double-arrow? #'=>)
-           (cons (make-tspec #'t (stx->list #'(tmeta* ...)) #'handler)
-             (parse-terms #'(term* ...)))]
-          [((t (tmeta* ...)) => handler term* ...) (double-arrow? #'=>)
-           (cons (make-tspec #'t (stx->list #'(tmeta* ...)) #'handler)
-             (parse-terms #'(term* ...)))]
-          [((t (tmeta* ...)) term* ...) 
-           (cons (make-tspec #'t (stx->list #'(tmeta* ...)))
-             (parse-terms (stx->list #'(term* ...))))])))
+      (lambda (id terms)
+        (define (build-tspec t mvs maybe-handler)
+          (make-tspec t (stx->list mvs) maybe-handler (format-id id "~a?" t)))
+        (let loop ([terms terms] [tspecs '()])
+          (syntax-parse terms
+            #:datum-literals (=>)
+            [() tspecs]
+            [((=> (t (tmeta* ...)) handler) . terms)
+             (loop #'terms
+                   (cons (build-tspec #'t #'(tmeta* ...) #'handler) tspecs))]
+            [((t (tmeta* ...)) => handler . terms)
+             (loop #'terms
+                   (cons (build-tspec #'t #'(tmeta* ...) #'handler) tspecs))]
+            [((t (tmeta* ...)) . terms) 
+             (loop #'terms
+                   (cons (build-tspec #'t #'(tmeta* ...) #f) tspecs))]))))
 
     (define parse-language-and-finish
       (lambda (name ldef)
@@ -296,7 +248,7 @@
                 (let ([base (car base-pair)])
                   (let ([entry-ntspec (or entry-ntspec (language-entry-ntspec base))])
                     (finish entry-ntspec name name
-                      (let-values ([(terms+ terms-) (partition-terms terms)])
+                      (let-values ([(terms+ terms-) (partition-terms name terms)])
                         (let* ([tspecs (freshen-tspecs (language-tspecs base) terms-)]
                                 [tspecs (add-tspecs tspecs terms+)]
                                 [terminal-meta* (extract-terminal-metas tspecs)])
@@ -304,8 +256,8 @@
                             (let* ([ntspecs (freshen-ntspecs (language-ntspecs base) ntspecs-)]
                                     [ntspecs (add-ntspecs ntspecs ntspecs+)])
                               (make-language name entry-ntspec tspecs ntspecs)))))))))
-              (let* ([tspecs (parse-terms terms)]
-                      [terminal-meta* (extract-terminal-metas tspecs)])
+              (let* ([tspecs (parse-terms name terms)]
+                     [terminal-meta* (extract-terminal-metas tspecs)])
                 (finish entry-ntspec name name
                   (make-language name
                     entry-ntspec
@@ -315,31 +267,27 @@
                              (parse-alts (cddr ntspec) terminal-meta*)))
                       ntspecs))))))))
 
-    (define extract-terminal-metas
-      (lambda (tspecs)
-        (foldl (lambda (tspec metas)
-                 (append (map syntax->datum (tspec-meta-vars tspec)) metas))
-          '() tspecs)))
-
     (define finish 
       (lambda (ntname lang id desc) ; constructs the output
         (annotate-language! desc id)
         (with-syntax ([(records ...) (language->lang-records desc)]
                       [(predicates ...) (language->lang-predicates desc id)]
                       [unparser-name (format-id id "unparse-~a" lang)]
-                      [unparser (make-unparser desc id)]
                       [meta-parser (make-meta-parser desc)])
-          #;(pretty-print (list 'unparser (syntax->datum lang) (syntax->datum #'unparser)))
-          #;(pretty-print (list 'meta-parser (syntax->datum lang) (syntax->datum #'meta-parser)))
-          (let ([stx #`(begin
-                         records ...
-                         predicates ...
-                         (define-syntax #,lang (cons '#,desc meta-parser))
-                         #;(define-property #,lang meta-parser-property meta-parser)
-                         (define-who unparser-name unparser)
-                         (void))])
-            #;(pretty-print (syntax->datum stx))
-            stx))))
+          (with-syntax ([(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
+            #;(pretty-print (list 'unparser (syntax->datum lang) (syntax->datum #'unparser)))
+            #;(pretty-print (list 'meta-parser (syntax->datum lang) (syntax->datum #'meta-parser)))
+            (let ([stx #`(begin
+                           records ...
+                           predicates ...
+                           (define-syntax #,lang (cons '#,desc meta-parser))
+                           ;(define-property #,lang meta-parser-property meta-parser)
+                           (define-unparser unparser-name #,lang)
+                           ;(printf "testing preds:\n")
+                           ;(begin (printf "~s:\n" 'tspec-preds) (tspec-preds 'a)) ...
+                           (void))])
+                 #;(pretty-print (syntax->datum stx))
+                 stx)))))
 
     (syntax-case x ()
       [(_ ?L ?rest ...)
@@ -366,14 +314,13 @@
           (lambda (p)
             #`(#,(ntspec-name p) #,(ntspec-meta-vars p)
                 #,@(map alt->s-expression (ntspec-alts p)))))
-        (lambda (env)
-          (let ([lang-pair (env lang)])
-            (unless lang-pair (raise-syntax-error who "language not found" lang))
-            (let ([lang (car lang-pair)])
-              #`'(define-language #,(language-name lang)
-                   (entry #,(language-entry-ntspec lang))
-                   (terminals #,@(map tspec->s-expression (language-tspecs lang)))
-                   #,@(map ntspec->s-expression (language-ntspecs lang))))))))
+        (let ([lang-pair (syntax-local-value lang)])
+          (unless lang-pair (raise-syntax-error who "language not found" lang))
+          (let ([lang (car lang-pair)])
+            #`'(define-language #,(language-name lang)
+                 (entry #,(language-entry-ntspec lang))
+                 (terminals #,@(map tspec->s-expression (language-tspecs lang)))
+                 #,@(map ntspec->s-expression (language-ntspecs lang)))))))
     (syntax-case x ()
       [(_ lang) (identifier? #'lang) (doit #'lang #f)]
       [(_ lang handler?) (identifier? #'lang) (doit #'lang (syntax->datum #'handler?))])))
@@ -509,3 +456,124 @@
                  (entry entry-nt)
                  (terminals ts ...)
                  nts ...))))])))
+
+#|
+
+(require syntax/parse)
+
+(define-syntax (new-define-language x)
+  (define-who 'new-define-language)
+  (struct form (meta-vars name))
+  (struct terminal form (pretty-printer pred meta-pred))
+  (struct nonterminal form (productions-syntax (productions #:mutable)))
+
+  (define terminal-table (make-hasheq))
+  (define meta-var-table (make-hasheq))
+  (define nonterminal-table (make-hasheq))
+
+  (define (add-terminal! tid t meta-vars pretty-printer)
+    (let ([tsym (syntax->datum t)])
+      (when (hash-ref terminal-table tsym #f)
+        (raise-syntax-error who "duplicate terminal found" t #f
+          (list (form-name (hash-ref terminal-table tsym)))))
+      (let ([term (terminal meta-vars t pretty-printer
+                            (format-id tid "~a?" t)
+                            (format-id tid "meta-~a?" t))])
+        (hash-set! terminal-table tsym term)
+        (for-each
+          (lambda (meta-var) (add-meta-var! meta-var term))
+          (syntax->datum meta-vars)))))
+
+  (define (add-nonterminal! tid name meta-vars alts)
+    (let ([namesym (syntax->datum t)])
+      (when (hash-ref nonterminal-table namesym #f)
+        (raise-syntax-error who "duplicate nonterminal found" name #f
+          (list (form-name (hash-ref nonterminal-table namesym)))))
+      (let ([nt (nonterminal meta-vars name alts #f)])
+        (hash-set! nonterminal-table namesym nt)
+        (for-each
+          (lambda (meta-var) (add-meta-var! meta-var nt))
+          (syntax->datum meta-vars)))))
+
+  (define (add-meta-var! mv form)
+    (when (hash-ref meta-var-table mv #f)
+      (raise-syntax-error who "duplicate meta-variable found"
+        (form-name form) #f (list (form-name (hash-ref meta-var-table mv)))))
+    (hash-set! meta-var-table mv thing))
+
+  (define parse-alts
+    (lambda (alts)
+      (let f ([alt* alt*])
+        (syntax-parse alt*
+          #:datum-literals (=> ->)
+          [() '()]
+          [((=> syn pretty) . rest)
+           #:with rest (f #'rest)
+           #:with alt (syn->alt #'syn #'pretty #f)
+           #'(alt . rest)]
+          [(syn => pretty . rest)
+           #:with rest (f #'rest)
+           #:with alt (syn->alt #'syn #'pretty #f)
+           #'(alt . rest)]
+          [((-> syn prettyf) . rest)
+           #:with rest (f #'rest)
+           #:with alt (syn->alt #'syn #'
+           #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
+           #'(alt . rest)
+           (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
+          [(syn -> prettyf . rest)
+           #:with rest (f #'rest)
+           #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
+           (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
+          [(syn . rest)
+           #:with rest (f #'rest)
+           (cons (make-alt #'syn #f #f) (f #'alt*))]
+          [_ (raise-syntax-error 'define-language "unexpected alt" alt*)]))))
+  (define (parse-terms! tid terms)
+    (let loop ([terms terms])
+      (syntax-parse terms
+        #:datum-literals (=>)
+        [() (void)]
+        [((=> (t:id (tmetas:id ...)) pretty-printer:expr) . rest)
+         (add-terminal! tid #'t #'(tmetas ...) #'pretty-printer)
+         (loop #'rest)]
+        [((t:id (tmetas:id ...)) => pretty-printer:expr . rest)
+         (add-terminal! tid #'t #'(tmetas ...) #'pretty-printer)
+         (loop #'rest)]
+        [((t:id (tmetas:id ...)) . rest) 
+         (add-terminal! tid #'t #'(tmetas ...) #f)
+         (loop #'rest)])))
+  (define (parse-clauses clauses)
+    (let f ([clauses clauses] [base-lang #f] [entry-ntspec #f] [first-ntspec #f] [terms '()] [nts '()])
+      (syntax-parse clauses
+        #:literals (extends entry terminals)
+        #:context x
+        [() (values base-lang (if base-lang entry-ntspec (or entry-ntspec first-ntspec)) terms)]
+        [((extends ?L:id) . rest)
+         (when base-lang
+           (raise-syntax-error 'define-language
+             "only one extends clause allowed in language definition"
+             #'(extends ?L) name))
+         (f #'rest #'?L entry-ntspec first-ntspec terms)]
+        [((entry ?P:id) . rest)
+         (when entry-ntspec
+           (raise-syntax-error 'define-language
+             "only one entry clause allowed in language definition"
+             #'(entry ?P) entry-ntspec))
+         (f #'rest base-lang #'?P first-ntspec terms)]
+        [((terminals ?t* ...) . rest)
+         (f #'rest base-lang entry-ntspec first-ntspec (append terms #'(?t* ...)))]
+        [((ntspec:id (metas:id ...) . desc) . rest)
+         (f #'rest base-lang entry-ntspec (or first-ntspec #'ntspec) terms
+            #`((ntspec (mats ...) . desc) . #,nts))]
+        [(x . rest) (raise-syntax-error 'define-language "unexpected clause" #'x)]
+        [x (raise-syntax-error 'define-language "unexpected syntax" #'x)])))
+  (define-syntax with-values
+    (syntax-rules ()
+      [(_ e0 e1) (call-with-values (lambda () e0) e1)]))
+  (syntax-case x ()
+    [(_ ?L:id . ?clauses)
+     (with-values (parse-clauses #'?clauses)
+       (lambda (base-lang 
+
+|# 

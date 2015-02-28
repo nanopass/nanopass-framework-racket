@@ -4,10 +4,11 @@
 
 (provide define-language-node-counter)
 
-(require (for-syntax  "records.rkt"))
+(require (for-syntax  "records.rkt" racket/syntax))
 
 (define-syntax define-language-node-counter
   (lambda (x)
+    (define ntspec-counters (make-hasheq))
     (define build-counter-proc
       (lambda (proc-name l)
         (lambda (ntspec)
@@ -29,7 +30,7 @@
                      (let ([ntspec (nonterminal-alt-ntspec alt)])
                        (loop alt* term* 
                          (cons #`[(#,(ntspec-all-pred ntspec) x)
-                                   (#,(ntspec-unparse-name ntspec) x)]
+                                   (#,(hash-ref ntspec-counters ntspec #f) x)]
                            nonterm*)
                          pair*))]
                     [(pair-alt? alt)
@@ -51,11 +52,11 @@
                                                (if (= lvl 0)
                                                    (if maybe?
                                                        (if outer-most?
-                                                           #`(if x (#,(ntspec-unparse-name spec) x) 0)
-                                                           #`(+ a (if x (#,(ntspec-unparse-name spec) x) 0)))
+                                                           #`(if x (#,(hash-ref ntspec-counters spec #f) x) 0)
+                                                           #`(+ a (if x (#,(hash-ref ntspec-counters spec #f) x) 0)))
                                                        (if outer-most?
-                                                           #`(#,(ntspec-unparse-name spec) x)
-                                                           #`(+ a (#,(ntspec-unparse-name spec) x))))
+                                                           #`(#,(hash-ref ntspec-counters spec #f) x)
+                                                           #`(+ a (#,(hash-ref ntspec-counters spec #f) x))))
                                                    (if outer-most?
                                                        #`(fold-left
                                                            (lambda (a x) #,(loop (- lvl 1) #f))
@@ -75,14 +76,18 @@
            (unless l-pair (raise-syntax-error 'define-language-node-counter "Unknown language" x #'lang))
            (let ([l (car l-pair)])
              (let ([ntspecs (language-ntspecs l)] [tspecs (language-tspecs l)])
-               (with-syntax ([(ntspec? ...) (map ntspec-pred ntspecs)]
-                             [(proc-name ...) (map ntspec-unparse-name ntspecs)] ; reuse these names internally
-                             [(tspec? ...) (map tspec-pred tspecs)]
-                             [(proc ...) (map (build-counter-proc #'name l) ntspecs)])
-                 #'(define name
-                     (lambda (x)
-                       (define proc-name proc) ...
-                       (cond
-                         [(ntspec? x) (proc-name x)] ...
-                         [(tspec? x) 1] ...
-                         [else (error 'name "unrecognized language record" x)]))))))))])))
+               (with-syntax ([(proc-name ...) (map (lambda (ntspec)
+                                                     (let ([n (format-id #'name "count-~a" (ntspec-name ntspec))])
+                                                       (hash-set! ntspec-counters ntspec n)
+                                                       n))
+                                                   ntspecs)])
+                 (with-syntax ([(ntspec? ...) (map ntspec-pred ntspecs)]
+                               [(tspec? ...) (map tspec-pred tspecs)]
+                               [(proc ...) (map (build-counter-proc #'name l) ntspecs)])
+                   #'(define name
+                       (lambda (x)
+                         (define proc-name proc) ...
+                         (cond
+                           [(ntspec? x) (proc-name x)] ...
+                           [(tspec? x) 1] ...
+                           [else (error 'name "unrecognized language record" x)])))))))))])))

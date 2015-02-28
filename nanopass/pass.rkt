@@ -507,7 +507,7 @@
                              #,fml))))])))
 
           (define gen-binding (lambda (t v) (if (eq? t v) '() (list #`(#,t #,v)))))
-          (define gen-t (lambda (acc) (if (identifier? acc) acc (gentemp))))
+          (define gen-t (lambda (acc) (if (identifier? acc) acc (generate-temporary))))
           (define gen-let1
             (lambda (t v e)
               (cond [(eq? t v) e]
@@ -570,7 +570,7 @@
 
           (define process-nano-dots
             (lambda (elt acc itype)
-              (let ([map-t (gentemp)])
+              (let ([map-t (generate-temporary "map-t")])
                 (let-values ([(ipred tbinding* ibinding* obinding*)
                                (process-nano-elt elt map-t itype)])
                   (let ([ls-t (gen-t acc)])
@@ -730,7 +730,7 @@
                   ; HERE: if this is a cata for a (maybe x) field, it needs to not bother
                   ; parsing the #f
                   (let* ([maybe-inid* (nano-cata-maybe-inid* elt)]
-                          [t (or (and maybe-inid* (car maybe-inid*)) (gentemp))]
+                          [t (or (and maybe-inid* (car maybe-inid*)) (generate-temporary))]
                           [maybe? (nano-cata-maybe? elt)]
                           [itype (if (syntax? itype) (maybe-syntax->datum itype) itype)])
                     (let-values ([(maybe-otype outid*)
@@ -897,7 +897,7 @@
                           (raise-syntax-error who "eq constraints are not supported" id)
                           #;(let-values ([(ibinding* ieqpred)
                           (f (cdr ibinding*) id*)])
-                              (let ([t (gentemp)])
+                              (let ([t (generate-temporary)])
                                 (values
                                   #`((#,t #,(cadr ibinding)) #,@ibinding*)
                                   (gen-and #`(nano-equal? #,t #,id) ieqpred))))
@@ -942,10 +942,13 @@
                   (let* ([alt (car alt*)] [alt (if (pair? alt) (car alt) alt)])
                     (f (cdr alt*)
                       (cons 
-                        #`[(#,(cond
-                                [(pair-alt? alt) (pair-alt-pred alt)]
-                                [(terminal-alt? alt) (tspec-pred (terminal-alt-tspec alt))]
-                                [else (ntspec-all-pred (nonterminal-alt-ntspec alt))])
+                        #`[((let ()
+                              (define-values (x)
+                                #,(cond
+                                    [(pair-alt? alt) (pair-alt-pred alt)]
+                                    [(terminal-alt? alt) (tspec-pred (terminal-alt-tspec alt))]
+                                    [else (ntspec-all-pred (nonterminal-alt-ntspec alt))]))
+                              x)
                              #,fml)
                             #,(make-clause alt '() #f)]
                         rcond-cl*)))))
@@ -961,19 +964,13 @@
                           (f (cdr alt*) rcond-rec-cl*
                             (cons #`[(eqv? tag #,(pair-alt-tag alt)) body] rcond-case-cl*))]
                         [(terminal-alt? alt)
-                          (let* ([tspec (terminal-alt-tspec alt)] [ttag (tspec-tag tspec)])
-                            (if ttag
-                                (f (cdr alt*) rcond-rec-cl*
-                                  (cons 
-                                    (if (tspec-parent? tspec)
-                                        #`[(not (= (bitwise-and tag #,ttag) 0)) body]
-                                        #`[(eqv? tag #,ttag) body])
-                                    rcond-case-cl*))
-                                (f (cdr alt*)
-                                  (cons
-                                    #`[(#,(tspec-pred (terminal-alt-tspec alt)) #,fml) body]
-                                    rcond-rec-cl*)
-                                  rcond-case-cl*)))]
+                          (let ([tspec (terminal-alt-tspec alt)])
+                            (f (cdr alt*)
+                               (cons
+                                 #`[(#,(tspec-pred (terminal-alt-tspec alt)) #,fml)
+                                    body]
+                                 rcond-rec-cl*)
+                               rcond-case-cl*))]
                         [else
                           (let ([ntspec (nonterminal-alt-ntspec alt)])
                             (let ([maybe-term-pred? (ntspec-all-term-pred ntspec)])
@@ -1142,10 +1139,13 @@
                       (f other-pclause*
                         (remove-alt alt alt-tree)
                         (cons
-                          #`[(#,(cond
-                                  [(pair-alt? alt) (pair-alt-pred alt)]
-                                  [(terminal-alt? alt) (tspec-pred (terminal-alt-tspec alt))]
-                                  [else (ntspec-all-pred (nonterminal-alt-ntspec alt))])
+                          #`[((let ()
+                                (define-values (x)
+                                  #,(cond
+                                      [(pair-alt? alt) (pair-alt-pred alt)]
+                                      [(terminal-alt? alt) (tspec-pred (terminal-alt-tspec alt))]
+                                      [else (ntspec-all-pred (nonterminal-alt-ntspec alt))]))
+                                x)
                                #,fml)
                               #,(make-clause alt related-pclause* else-id)]
                           rcond-cl*))))))
@@ -1164,17 +1164,11 @@
                             (f other-pclause* (remove-alt alt alt-tree) rcond-rec-cl*
                               (cons #`[(eqv? tag #,(pair-alt-tag alt)) body] rcond-case-cl*))]
                           [(terminal-alt? alt)
-                            (let* ([tspec (terminal-alt-tspec alt)] [ttag (tspec-tag tspec)])
-                              (if ttag
-                                  (f other-pclause* (remove-alt alt alt-tree) rcond-rec-cl*
-                                    (cons
-                                      (if (tspec-parent? tspec)
-                                          #`[(not (= (bitwise-and tag #,ttag) 0)) body]
-                                          #`[(eqv? tag #,ttag) body])
-                                      rcond-case-cl*))
-                                  (f other-pclause* (remove-alt alt alt-tree)
-                                    (cons #`[(#,(tspec-pred (terminal-alt-tspec alt)) #,fml) body] rcond-rec-cl*)
-                                    rcond-case-cl*)))]
+                           (f other-pclause* (remove-alt alt alt-tree)
+                              (cons #`[(#,(tspec-pred (terminal-alt-tspec alt)) #,fml)
+                                       body]
+                                    rcond-rec-cl*)
+                              rcond-case-cl*)]
                           [else
                             (let ([ntspec (nonterminal-alt-ntspec alt)])
                               (let ([maybe-term-pred? (ntspec-all-term-pred ntspec)])
