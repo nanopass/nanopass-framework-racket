@@ -24,10 +24,10 @@
                   (cond
                     [(terminal-alt? alt)
                      (loop alt*
-                       (cons #`[(#,(tspec-pred (terminal-alt-tspec alt)) x) 1] term*)
+                       (cons #`[(#,(tspec-pred (terminal-alt-tspec alt (language-tspecs l))) x) 1] term*)
                        nonterm* pair*)]
                     [(nonterminal-alt? alt)
-                     (let ([ntspec (nonterminal-alt-ntspec alt)])
+                     (let ([ntspec (nonterminal-alt-ntspec alt (language-ntspecs l))])
                        (loop alt* term* 
                          (cons #`[(#,(ntspec-all-pred ntspec) x)
                                    (#,(hash-ref ntspec-counters ntspec #f) x)]

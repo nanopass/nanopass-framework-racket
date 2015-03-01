@@ -161,8 +161,8 @@
               [s
                (identifier? #'s)
                (if (memq (meta-var->raw-meta-var (syntax->datum #'s)) terminal-meta*)
-                   (make-terminal-alt #'s pretty pretty-procedure?)
-                   (make-nonterminal-alt #'s pretty pretty-procedure?))])))
+                   (make-terminal-alt #'s pretty pretty-procedure? #f)
+                   (make-nonterminal-alt #'s pretty pretty-procedure? #f))])))
         (let f ([alt* alt*])
           (syntax-parse alt*
             [() '()]
@@ -267,6 +267,16 @@
                              (parse-alts (cddr ntspec) terminal-meta*)))
                       ntspecs))))))))
 
+    (define escape-pattern
+      (lambda (x)
+        (syntax-case x (...)
+          [... #'(... (... ...))]
+          [(a . d) (with-syntax ([a (escape-pattern #'a)]
+                                 [d (escape-pattern #'d)])
+                     #'(a . d))]
+          [() #'()]
+          [id  (identifier? #'id) #'id])))
+
     (define finish 
       (lambda (ntname lang id desc) ; constructs the output
         (annotate-language! desc id)
@@ -280,7 +290,82 @@
             (let ([stx #`(begin
                            records ...
                            predicates ...
-                           (define-syntax #,lang (cons '#,desc meta-parser))
+                           (define-syntax #,lang
+                             (cons 
+                               ($make-language
+                                 #'#,(language-name desc)
+                                 #'#,(language-entry-ntspec desc)
+                                 (list
+                                   #,@(map (lambda (tspec)
+                                             #`(make-tspec
+                                                 #'#,(tspec-type tspec)
+                                                 (list #,@(map (lambda (mv) #`#'#,mv) (tspec-meta-vars tspec)))
+                                                 #,(let ([t (tspec-handler tspec)])
+                                                     (and t #`#'#,t))
+                                                 #'#,(tspec-pred tspec)))
+                                           (language-tspecs desc)))
+                                 (list
+                                   #,@(map (lambda (ntspec)
+                                             #`($make-ntspec
+                                                 #'#,(ntspec-name ntspec)
+                                                 (list #,@(map (lambda (mv) #`#'#,mv) (ntspec-meta-vars ntspec)))
+                                                 (list #,@(map (lambda (alt)
+                                                                 (cond
+                                                                   [(pair-alt? alt)
+                                                                    #`($make-pair-alt
+                                                                        #'#,(escape-pattern (alt-syn alt))
+                                                                        #,(let ([t (alt-pretty alt)])
+                                                                            (and t 
+                                                                                 (if (alt-pretty-procedure? alt)
+                                                                                     #`#'#,(alt-pretty alt)
+                                                                                     #`#'#,(escape-pattern (alt-pretty alt)))))
+                                                                        #,(alt-pretty-procedure? alt)
+                                                                        '#,(pair-alt-pattern alt)
+                                                                        #,(let ([t (pair-alt-field-names alt)])
+                                                                            (and t
+                                                                                 #`(list #,@(map (lambda (id) #`#'#,id) t))))
+                                                                        '#,(pair-alt-field-levels alt)
+                                                                        '#,(pair-alt-field-maybes alt)
+                                                                        #,(pair-alt-implicit? alt)
+                                                                        #,(pair-alt-tag alt)
+                                                                        #'#,(pair-alt-pred alt)
+                                                                        #'#,(pair-alt-maker alt)
+                                                                        #,(let ([t (pair-alt-accessors alt)])
+                                                                            (and t
+                                                                                 #`(list #,@(map (lambda (id) #`#'#,id) t))))
+                                                                        #'#,(pair-alt-name alt))]
+                                                                   [(terminal-alt? alt)
+                                                                    #`(make-terminal-alt
+                                                                        #'#,(escape-pattern (alt-syn alt))
+                                                                        #,(let ([t (alt-pretty alt)])
+                                                                            (and t 
+                                                                                 (if (alt-pretty-procedure? alt)
+                                                                                     #`#'#,(alt-pretty alt)
+                                                                                     #`#'#,(escape-pattern (alt-pretty alt)))))
+                                                                        #,(alt-pretty-procedure? alt)
+                                                                        #'#,(terminal-alt-type alt))]
+                                                                   [(nonterminal-alt? alt)
+                                                                    #`(make-nonterminal-alt
+                                                                        #'#,(escape-pattern (alt-syn alt))
+                                                                        #,(let ([t (alt-pretty alt)])
+                                                                            (and t 
+                                                                                 (if (alt-pretty-procedure? alt)
+                                                                                     #`#'#,(alt-pretty alt)
+                                                                                     #`#'#,(escape-pattern (alt-pretty alt)))))
+                                                                        #,(alt-pretty-procedure? alt)
+                                                                        #'#,(nonterminal-alt-name alt))]))
+                                                               (ntspec-alts ntspec)))
+                                                 #,(ntspec-tag ntspec)
+                                                 #'#,(ntspec-pred ntspec)
+                                                 #'#,(ntspec-all-pred ntspec)
+                                                 #,(let ([t (ntspec-all-term-pred ntspec)])
+                                                     (and t #`#'#,t))
+                                                 '#,(ntspec-all-tag ntspec)
+                                                 #'#,(ntspec-struct-name ntspec)))
+                                           (language-ntspecs desc)))
+                                 #'#,(language-struct desc)
+                                 #,(language-tag-mask desc))
+                               meta-parser))
                            ;(define-property #,lang meta-parser-property meta-parser)
                            (define-unparser unparser-name #,lang)
                            ;(printf "testing preds:\n")

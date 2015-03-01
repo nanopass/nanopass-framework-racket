@@ -34,11 +34,11 @@
                           (cond
                             [(terminal-alt? prod)
                              (inner-loop (cdr prod*) nt*
-                               (let ([tspec (terminal-alt-tspec prod)])
+                               (let ([tspec (terminal-alt-tspec prod (language-tspecs l))])
                                  (if (memq tspec ts) ts (cons tspec ts))))]
                             [(nonterminal-alt? prod)
                              (inner-loop (cdr prod*) 
-                               (let ([ntspec (nonterminal-alt-ntspec prod)])
+                               (let ([ntspec (nonterminal-alt-ntspec prod (language-ntspecs l))])
                                  (if (or (memq ntspec nt*) (memq ntspec nts)) nt* (cons ntspec nt*)))
                                ts)]
                             [(pair-alt? prod)

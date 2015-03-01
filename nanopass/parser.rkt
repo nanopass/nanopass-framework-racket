@@ -99,7 +99,7 @@
            [pair-imp-alt* pair-alt-implicit?]
            [pair-alt* otherwise])
           (partition-syn nonterm-alt*
-            ([nonterm-imp-alt* (lambda (alt) (has-implicit-alt?  (nonterminal-alt-ntspec alt)))]
+            ([nonterm-imp-alt* (lambda (alt) (has-implicit-alt? (nonterminal-alt-ntspec alt (language-ntspecs desc)) (language-ntspecs desc)))]
              [nonterm-nonimp-alt* otherwise])
             #`(lambda (s-exp at-top-parse?)
                 (parse-or

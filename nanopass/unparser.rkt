@@ -33,7 +33,7 @@
         ;; non-terminal specifier with no surrounding markers.
         (define make-nonterm-clause
           (lambda (alt)
-            (let ([ntspec (nonterminal-alt-ntspec alt)])
+            (let ([ntspec (nonterminal-alt-ntspec alt ntspecs)])
               (with-syntax ([nonterm-proc (hash-ref ntspec-unparsers ntspec #f)]
                             [nonterm-pred? (ntspec-all-pred ntspec)])
                 (list #`((nonterm-pred? ir) (nonterm-proc ir)))))))
@@ -42,7 +42,7 @@
         ;; that refer to terminals, and have no surrounding marker.
         (define-who make-term-clause ;; only atom alt cases
           (lambda (alt)
-            (let ([tspec (terminal-alt-tspec alt)])
+            (let ([tspec (terminal-alt-tspec alt tspecs)])
               (with-syntax ([pred? (tspec-pred tspec)]
                             [tspec-body (make-unparse-term-clause-body tspec)])
                 #'((pred? ir) tspec-body)))))
@@ -101,7 +101,8 @@
                        (partition-syn nonterm-alt*
                                       ([nonterm-imp-alt* (lambda (alt)
                                                            (has-implicit-alt?
-                                                             (nonterminal-alt-ntspec alt)))]
+                                                             (nonterminal-alt-ntspec alt ntspecs)
+                                                             ntspecs))]
                                        [nonterm-nonimp-alt* otherwise])
                                       #`(lambda (ir)
                                           (cond
