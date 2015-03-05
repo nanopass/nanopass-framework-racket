@@ -25,8 +25,8 @@
                      "syntaxconvert.rkt"
                      "meta-parser.rkt"
                      "pass-helper.rkt")
-         (only-in "helpers.rkt"
-                  nanopass-record-tag trace-let))
+         (only-in "helpers.rkt" nanopass-record-tag)
+         racket/trace)
 
 ;; NOTE: the following is less general then the with-output-language because it does not
 ;; support multiple return values.  It also generates nastier code for the expander to deal

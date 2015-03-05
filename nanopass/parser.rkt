@@ -4,14 +4,14 @@
 
 (provide define-parser trace-define-parser)
 
-(require (for-syntax racket/syntax))
-(require (for-syntax "helpers.rkt"))
-(require (for-syntax "records.rkt"))
-(require (for-syntax "syntaxconvert.rkt"))
-(require (for-syntax syntax/stx))
-
-(require "nano-syntax-dispatch.rkt")
-(require (only-in "helpers.rkt" define-who np-parse-fail-token))
+(require "nano-syntax-dispatch.rkt"
+         racket/trace
+         (only-in "helpers.rkt" define-who np-parse-fail-token)
+         (for-syntax racket/syntax
+                     syntax/stx
+                     "helpers.rkt"
+                     "records.rkt"
+                     "syntaxconvert.rkt"))
 
 (define-syntax parse-or
   (syntax-rules (on-error)
@@ -84,8 +84,8 @@
                            #`(nano-syntax-dispatch
                                s-exp '#,(datum->syntax #'lang-name field-pats))
                            #`(and (eq? '#,(stx-car (alt-syn alt)) (car s-exp))
-                                  (nano-syntax-dispatch 
-                                    (cdr s-exp) 
+                                  (nano-syntax-dispatch
+                                    (cdr s-exp)
                                     '#,(datum->syntax #'lang-name field-pats))))
                       => (lambda (ls)
                            (apply
@@ -143,7 +143,7 @@
                                   ntspecs)])
                 (with-syntax ([entry-proc-name (format-id lang-name "parse-~a" ntname)]
                               [parser-name parser-name])
-                  (with-syntax ([(lam-exp ...) (if trace? #'(trace-lambda parser-name) #'(lambda))]
+                  (with-syntax ([(lam-exp ...) (if trace? #'(trace-lambda #:name parser-name) #'(lambda))]
                                 [def (if trace? #'trace-define #'define)])
                     #'(define-who parser-name
                         (lam-exp ... (s-exp)

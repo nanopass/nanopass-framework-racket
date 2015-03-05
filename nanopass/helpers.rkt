@@ -43,9 +43,6 @@
   ;; formatting
   format printf pretty-print
 
-  ;; debugging support
-  trace-lambda trace-define-syntax trace-let trace-define
-          
   ;; needed to know what code to generate
   (contract-out
     [optimize-level (case->
@@ -406,84 +403,3 @@
       (unless (and (integer? n) (<= 0 n 3))
         (error who "invalid optimization level" n))
       n)))
-
-(define-who trace-current-depth
-  (make-parameter 0
-    (lambda (n)
-      (unless (and (exact-integer? n) (>= n 0))
-        (error who "expected non-negative integer" n))
-      n)))
-
-(define-who trace-indent-depth
-  (make-parameter 10
-    (lambda (n)
-      (unless (and (exact-integer? n) (> n 0))
-        (error who "expected positive integer" n))
-      n)))
-
-(define build-trace-prefix-helper
-  (lambda (n)
-    (for/fold ([s ""]) ([i n]) (string-append s (if (even? i) "|" " ")))))
-
-(define build-trace-prefix
-  (lambda ()
-    (if (>= (trace-current-depth) (trace-indent-depth))
-        (let* ([str (format "[~s]" (trace-current-depth))])
-          (string-append
-            (build-trace-prefix-helper
-              (- (trace-indent-depth) (string-length str)))
-            str))
-        (build-trace-prefix-helper (trace-current-depth)))))
-
-(define print-trace-entry
-  (lambda (x)
-    (display (build-trace-prefix))
-    (pretty-display x)))
-
-(define print-trace-result
-  (lambda (ls)
-    (let* ([prefix (build-trace-prefix)]
-           [blank-prefix (make-string (string-length prefix) #\space)])
-      (let loop ([ls ls] [prefix prefix])
-        (unless (null? ls)
-          (display prefix)
-          (pretty-display (car ls))
-          (loop (cdr ls) blank-prefix))))))
-
-(define simple-trace
-  (lambda (name f)
-    (lambda args
-      (parameterize ([trace-current-depth (+ (trace-current-depth) 1)])
-        (print-trace-entry (cons name args))
-        (call-with-values
-          (lambda () (apply f args))
-          (lambda results
-            (print-trace-result results)
-            (apply values results)))))))
-
-(define-syntax trace-lambda
-  (syntax-rules ()
-    [(_ name args body0 body1 ...)
-     (simple-trace 'name (lambda args body0 body1 ...))]))
-
-(define-syntax trace-let
-  (syntax-rules ()
-    [(_ name ([x e] ...) body0 body1 ...)
-     ((simple-trace 'name (lambda (x ...) body0 body1 ...)) e ...)]))
-
-(define-syntax trace-define
-  (syntax-rules ()
-    [(_ (name x ... . r) body0 body1 ...)
-     (define name (simple-trace 'name (lambda (x ... . r) body0 body1 ...)))]
-    [(_ name e) (define name (simple-trace 'name e))]))
-
-(define-syntax trace-define-syntax
-  (syntax-rules ()
-    [(_ name transformer)
-     (define-syntax name
-       (lambda (x)
-         (let ([real-result #f])
-           (trace-let name ([dummy-x (syntax->datum x)])
-             (set! real-result (transformer x))
-             (syntax->datum real-result))
-           real-result)))]))
