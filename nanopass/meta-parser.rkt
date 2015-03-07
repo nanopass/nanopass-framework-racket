@@ -17,6 +17,15 @@
 
 (define make-meta-parser
   (lambda (desc)
+    (define escape-pattern
+      (lambda (x)
+        (syntax-case x (...)
+          [... #'(... (... ...))]
+          [(a . d) (with-syntax ([a (escape-pattern #'a)]
+                                 [d (escape-pattern #'d)])
+                     #'(a . d))]
+          [() #'()]
+          [id  (identifier? #'id) #'id])))
     (define ntspec-meta-parsers (make-hasheq))
     (define make-meta-parse-proc
       (lambda (desc tspecs ntspecs ntspec lang-name cata?)
@@ -53,13 +62,33 @@
             (lambda (alt)
               #`[(memq (meta-var->raw-meta-var (syntax->datum #,x))
                        (quote #,(tspec-meta-vars (terminal-alt-tspec alt (language-tspecs desc)))))
-                 (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
+                 (make-nano-meta
+                   (make-terminal-alt
+                     #'#,(escape-pattern (alt-syn alt))
+                     #,(let ([t (alt-pretty alt)])
+                         (and t
+                              (if (alt-pretty-procedure? alt)
+                                  #`#'#,(alt-pretty alt)
+                                  #`#'#,(escape-pattern (alt-pretty alt)))))
+                     #,(alt-pretty-procedure? alt)
+                     #'#,(terminal-alt-type alt))
+                   (list (make-nano-unquote #,x)))])))
         (define make-nonterm-unquote
           (lambda (x)
             (lambda (alt)
               #`[(memq (meta-var->raw-meta-var (syntax->datum #,x))
                        (quote #,(ntspec-meta-vars (nonterminal-alt-ntspec alt (language-ntspecs desc)))))
-                 (make-nano-meta '#,alt (list (make-nano-unquote #,x)))])))
+                 (make-nano-meta
+                   (make-nonterminal-alt
+                     #'#,(escape-pattern (alt-syn alt))
+                     #,(let ([t (alt-pretty alt)])
+                         (and t 
+                              (if (alt-pretty-procedure? alt)
+                                  #`#'#,(alt-pretty alt)
+                                  #`#'#,(escape-pattern (alt-pretty alt)))))
+                     #,(alt-pretty-procedure? alt)
+                     #'#,(nonterminal-alt-name alt))
+                   (list (make-nano-unquote #,x)))])))
         (define make-nonterm-clause
           (lambda (x maybe?)
             (lambda (alt)
@@ -89,8 +118,30 @@
                        => (lambda (ls)
                             (apply
                               (lambda (field-var ...)
-                                (make-nano-meta '#,alt
-                                                (list parsed-field ...)))
+                                (make-nano-meta
+                                  ($make-pair-alt
+                                    #'#,(escape-pattern (alt-syn alt))
+                                    #,(let ([t (alt-pretty alt)])
+                                        (and t 
+                                             (if (alt-pretty-procedure? alt)
+                                                 #`#'#,(alt-pretty alt)
+                                                 #`#'#,(escape-pattern (alt-pretty alt)))))
+                                    #,(alt-pretty-procedure? alt)
+                                    '#,(pair-alt-pattern alt)
+                                    #,(let ([t (pair-alt-field-names alt)])
+                                        (and t
+                                             #`(list #,@(map (lambda (id) #`#'#,id) t))))
+                                    '#,(pair-alt-field-levels alt)
+                                    '#,(pair-alt-field-maybes alt)
+                                    #,(pair-alt-implicit? alt)
+                                    #,(pair-alt-tag alt)
+                                    #'#,(pair-alt-pred alt)
+                                    #'#,(pair-alt-maker alt)
+                                    #,(let ([t (pair-alt-accessors alt)])
+                                        (and t
+                                             #`(list #,@(map (lambda (id) #`#'#,id) t))))
+                                    #'#,(pair-alt-name alt))
+                                  (list parsed-field ...)))
                               ls)))))))))
         (define separate-syn
           (lambda (ls)
