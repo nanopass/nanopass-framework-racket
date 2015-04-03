@@ -124,7 +124,7 @@
             [((- . ts) . terms)
              (loop #'terms
                    terms+
-                   (append terms- (parse-terms id #'ts.)))]))))
+                   (append terms- (parse-terms id #'ts)))]))))
 
     (define partition-ntspecs
       (lambda (ntspecs terminal-meta*)
