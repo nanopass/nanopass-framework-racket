@@ -5,3 +5,7 @@ compiled
 *.dvi
 *.aux
 *.log
+*~
+\#*
+.\#*
+.DS_Store

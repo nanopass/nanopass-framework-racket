@@ -4,10 +4,10 @@
 
 (require rackunit
          rackunit/text-ui
-         "tests/compiler-test.rkt"
-         "tests/helpers.rkt"
-         "tests/unit-tests.rkt"
-         "nanopass/helpers.rkt")
+         "compiler-test.rkt"
+         "helpers.rkt"
+         "unit-tests.rkt"
+         "../private/helpers.rkt")
 
 (printf "Running unit tests\n")
 (void

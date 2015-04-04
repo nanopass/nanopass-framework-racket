@@ -13,7 +13,7 @@
   var quoted-const time printf system pretty-print format set-cons
   define-who)
 
-(require "../nanopass/helpers.rkt")  ; how do we find this?
+(require "../private/helpers.rkt")  ; how do we find this?
 
 (define iota
   (lambda (n)
@@ -39,9 +39,9 @@
   (syntax-rules ()
     [(_ expr) (quote expr)])) 
   
-(define-syntax const
-  (syntax-rules ()
-    [(_ expr) expr])) 
+;;(define-syntax const
+;;  (syntax-rules ()
+;;    [(_ expr) expr])) 
   
 (define-syntax var
   (syntax-rules ()

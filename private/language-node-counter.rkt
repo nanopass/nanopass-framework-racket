@@ -1,10 +1,12 @@
-#lang racket
+#lang racket/base
 ;;; Copyright (c) 2000-2013 Andrew W. Keep
 ;;; See the accompanying file Copyright for details
 
 (provide define-language-node-counter)
 
-(require (for-syntax  "records.rkt" racket/syntax))
+(require (for-syntax racket/syntax
+                     racket/base
+                     "records.rkt"))
 
 (define-syntax define-language-node-counter
   (lambda (x)

@@ -1,7 +1,8 @@
-#lang racket
+#lang racket/base
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for details
 
+(require racket/contract/base)
 (provide
   ;; hack
   maybe-syntax->datum
@@ -59,9 +60,11 @@
   with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote
   (contract-out [list-head (-> list? exact-nonnegative-integer? list?)]))
 
-(require (for-syntax syntax/stx)
+(require (for-syntax syntax/stx
+                     racket/base)
          syntax/srcloc
-         racket/splicing)
+         racket/splicing
+         racket/pretty)
 
 (define maybe-syntax->datum
   (lambda (x)

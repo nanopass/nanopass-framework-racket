@@ -1,7 +1,8 @@
-#lang racket
+#lang racket/base
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for details
 
+(require racket/contract/base)
 (provide
   nonterm-id->ntspec
   $make-language
@@ -47,7 +48,7 @@
                               nano-meta? list?)))]
 
     [make-nano-cata (-> symbol?
-                        syntax? 
+                        syntax?
                         (or/c false/c syntax?)
                         (or/c false/c (listof syntax?))
                         (or/c false/c (listof identifier?))
@@ -133,7 +134,7 @@
          syntax/stx
          "helpers.rkt"
          "syntaxconvert.rkt"
-         (for-template racket
+         (for-template racket/base
                        (only-in "helpers.rkt" nanopass-record)))
 
 (define-struct language
