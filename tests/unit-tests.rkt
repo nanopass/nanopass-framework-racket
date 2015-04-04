@@ -10,10 +10,10 @@
          maybe-unparse-tests)
 
 (require rackunit
-         "../nanopass/helpers.rkt"
-         "../nanopass/language.rkt"
-         "../nanopass/pass.rkt"
-         "../nanopass/parser.rkt")
+         "../private/helpers.rkt"
+         "../private/language.rkt"
+         "../private/pass.rkt"
+         "../private/parser.rkt")
 
 (define primitives '(car cdr cons + - =))
 (define primitive? (lambda (x) (memq x primitives)))

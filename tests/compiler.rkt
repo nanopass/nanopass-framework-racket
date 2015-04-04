@@ -28,8 +28,8 @@
   ;; preprocessor
   rename-vars/verify-legal)
 
-(require "../nanopass.rkt")                       ; how do we find nanopass.rkt?
-(require "../nanopass/nano-syntax-dispatch.rkt")  ; how do we find the nanopass directories?
+(require "../main.rkt")                       ; how do we find nanopass.rkt?
+(require "../private/nano-syntax-dispatch.rkt")  ; how do we find the nanopass directories?
 
 (require "helpers.rkt")
 (require "synforms.rkt")
