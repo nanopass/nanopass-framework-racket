@@ -6,12 +6,13 @@
   make-quasiquote-transformer make-in-context-transformer
   output-records->syntax parse-cata)
 
-(require racket/syntax)
-(require syntax/stx)
-(require "helpers.rkt")
-(require "records.rkt")
-(require "syntaxconvert.rkt")
-(require "meta-syntax-dispatch.rkt")
+(require racket/syntax
+         syntax/stx
+         (for-template racket/splicing)
+         "helpers.rkt"
+         "records.rkt"
+         "syntaxconvert.rkt"
+         "meta-syntax-dispatch.rkt")
 
 (require (for-template racket))
 
@@ -327,13 +328,13 @@
     (if type
         (with-syntax ([quasiquote (datum->syntax id 'quasiquote)]
                       [in-context (datum->syntax id 'in-context)])
-          #`(let-syntax ([quasiquote
+          #`(splicing-let-syntax ([quasiquote
                            '#,(make-quasiquote-transformer id type omrec ometa-parser)]
                           [in-context
                             '#,(make-in-context-transformer id omrec ometa-parser)])
               #,body))
         (with-syntax ([in-context (datum->syntax id 'in-context)])
-          #`(let-syntax ([in-context
+          #`(splicing-let-syntax ([in-context
                            '#,(make-in-context-transformer id omrec ometa-parser)])
               #,body)))))
 
@@ -347,7 +348,7 @@
       (syntax-case x ()
         [(k ntname stuff ...)
          (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-           #`(let-syntax ([quasiquote '#,(make-quasiquote-transformer
+           #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
                                            #'k #'ntname
                                            omrec ometa-parser)])
                stuff ...))]))))
@@ -472,7 +473,7 @@
                                      ; this with the appropriate call.  In the meantime this should allow us to
                                      ; remove some of our in-contexts
                                      (with-syntax ([quasiquote (datum->syntax pass-name 'quasiquote)])
-                                       #`(let-syntax ([quasiquote '#,(make-quasiquote-transformer
+                                       #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
                                                                        pass-name (spec-type spec)
                                                                        omrec ometa-parser)])
                                            #,x))

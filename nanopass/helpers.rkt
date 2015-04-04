@@ -60,7 +60,8 @@
   (contract-out [list-head (-> list? exact-nonnegative-integer? list?)]))
 
 (require (for-syntax syntax/stx)
-         syntax/srcloc)
+         syntax/srcloc
+         racket/splicing)
 
 (define maybe-syntax->datum
   (lambda (x)
@@ -84,7 +85,7 @@
     (syntax-case x ()
       [(k . body)
        (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-         #'(let-syntax ([quasiquote (syntax-rules () [(_ x) `x])]) . body))])))
+         #'(splicing-let-syntax ([quasiquote (syntax-rules () [(_ x) `x])]) . body))])))
 
 (define-syntax extended-quasiquote
   (lambda (x)
@@ -180,7 +181,7 @@
     (syntax-case x ()
       [(k . body)
        (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-         #'(let-syntax ([quasiquote (syntax-rules ()
+         #'(splicing-let-syntax ([quasiquote (syntax-rules ()
                                       [(_ x) (extended-quasiquote x)])])
 
              . body))])))
@@ -190,7 +191,7 @@
     (syntax-case x ()
       [(k (x* ...) . body)
        (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-         #'(let-syntax ([quasiquote
+         #'(splicing-let-syntax ([quasiquote
                           (lambda (x)
                             (define replace-vars
                               (let ([vars (list #'x* ...)])

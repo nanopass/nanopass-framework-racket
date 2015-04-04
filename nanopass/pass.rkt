@@ -26,7 +26,8 @@
                      "meta-parser.rkt"
                      "pass-helper.rkt")
          (only-in "helpers.rkt" nanopass-record-tag nanopass-record?)
-         racket/trace)
+         racket/trace
+         racket/splicing)
 
 ;; NOTE: the following is less general then the with-output-language because it does not
 ;; support multiple return values.  It also generates nastier code for the expander to deal
@@ -59,7 +60,7 @@
          (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
        (unless (procedure? meta-parser)
          (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
-       #`(let-syntax ([quasiquote '#,(make-quasiquote-transformer
+       #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
                                       #'id #'type olang
                                       meta-parser)]
                       [in-context '#,(make-in-context-transformer
@@ -75,7 +76,7 @@
            (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
          (unless (procedure? meta-parser)
            (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
-         #`(let-syntax
+         #`(splicing-let-syntax
                ([in-context '#,(make-in-context-transformer #'id olang
                                                             meta-parser)])
              b b* ...))]))
