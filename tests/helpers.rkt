@@ -39,9 +39,9 @@
   (syntax-rules ()
     [(_ expr) (quote expr)])) 
   
-(define-syntax const
-  (syntax-rules ()
-    [(_ expr) expr])) 
+;;(define-syntax const
+;;  (syntax-rules ()
+;;    [(_ expr) expr])) 
   
 (define-syntax var
   (syntax-rules ()
