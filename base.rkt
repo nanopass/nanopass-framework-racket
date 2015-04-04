@@ -11,9 +11,9 @@
  with-extended-quasiquote with-racket-quasiquote
  #;lookup-language-pred #;lookup-language-meta-pred)
 
-(require "../private/language.rkt"
-         "../private/parser.rkt"
-         "../private/language-node-counter.rkt"
-         "../private/pass.rkt"
-         "../private/helpers.rkt"
-         "../private/records.rkt")
+(require "private/language.rkt"
+         "private/parser.rkt"
+         "private/language-node-counter.rkt"
+         "private/pass.rkt"
+         "private/helpers.rkt"
+         "private/records.rkt")
