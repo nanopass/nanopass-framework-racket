@@ -1,7 +1,8 @@
-#lang racket
+#lang racket/base
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for details
 
+(require racket/contract/base)
 (provide/contract
   [convert-pattern (-> syntax? (values (or/c symbol? vector? pair? null?) (listof identifier?) (listof exact-nonnegative-integer?) (listof boolean?)))])
 

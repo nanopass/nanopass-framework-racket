@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for details
 
@@ -17,10 +17,11 @@
 ;;;     - check to make sure metas are unique
 (provide define-language language->s-expression diff-languages prune-language
          define-pruned-language)
-  
+
 (require  "helpers.rkt"
           "unparser.rkt"
           (for-syntax racket/syntax
+                      racket/base
                       syntax/stx
                       syntax/parse
                       "helpers.rkt"
@@ -28,8 +29,7 @@
                       "records.rkt"
                       "meta-parser.rkt"))
 
-(define-syntax define-language
-  (lambda (x) 
+(define-syntax (define-language x)
     ;; Doing a little extra work here to make sure that we are able to track
     ;; errors.  The basic idea is that we want to go through the list of
     ;; existing tspecs, and when we keep them, make a new copy (so that
@@ -377,7 +377,7 @@
     (syntax-case x ()
       [(_ ?L ?rest ...)
        (identifier? #'?L)
-       (parse-language-and-finish #'?L #'(?rest ...))])))
+       (parse-language-and-finish #'?L #'(?rest ...))]))
 
 (define-syntax language->s-expression
   (lambda (x)
