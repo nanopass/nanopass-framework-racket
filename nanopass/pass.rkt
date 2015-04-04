@@ -1049,35 +1049,40 @@
             (lambda (alt)
               ($make-nt-alt-info alt '() '())))
 
-          (define build-ntspec-ht
+          (define build-nt-alt-info*
             (lambda (ntspec)
-              (let ([ht (make-hasheq)])
-                (define set-cons (lambda (item ls) (if (memq item ls) ls (cons item ls))))
-                (define set-append
-                  (lambda (ls1 ls2)
-                    (cond
-                      [(null? ls1) ls2]
-                      [(null? ls2) ls1]
-                      [else (foldl (lambda (ls item) (set-cons item ls)) ls2 ls1)])))
-                (define discover-nt-alt-info!
-                  (lambda (alt up*)
-                    (let ([nt-alt-info (or (hash-ref ht alt #f)
-                                           (let ([nt-alt-info (make-nt-alt-info alt)])
-                                             (hash-set! ht alt nt-alt-info)
-                                             nt-alt-info))])
-                      (set-nt-alt-info-up*! nt-alt-info
-                        (set-append up* (nt-alt-info-up* nt-alt-info)))
-                      (let ([up* (cons alt up*)])
-                        (let ([down* (foldl
-                                       (lambda (down* alt)
-                                         (set-append (discover-nt-alt-info! alt up*) down*))
-                                       (nt-alt-info-down* nt-alt-info)
-                                       (filter nonterminal-alt? (ntspec-alts (nonterminal-alt-ntspec alt (language-ntspecs ilang)))))])
-                          (set-nt-alt-info-down*! nt-alt-info down*)
-                          (cons alt down*))))))
-                (for-each (lambda (alt) (discover-nt-alt-info! alt '()))
-                  (filter nonterminal-alt? (ntspec-alts ntspec)))
-                ht)))
+              (define set-cons (lambda (alt ls) (if (memf (lambda (x) (alt=? x alt)) ls) ls (cons alt ls))))
+              (define union
+                (lambda (ls1 ls2)
+                  (cond
+                    [(null? ls1) ls2]
+                    [(null? ls2) ls1]
+                    [else (foldl (lambda (ls item) (set-cons item ls)) ls2 ls1)])))
+              (define process-ntalt*
+                (lambda (ntalt* nt-alt-info* up*)
+                  (let loop ([ntalt* ntalt*] [nt-alt-info* nt-alt-info*] [down* '()])
+                    (if (null? ntalt*)
+                        (values nt-alt-info* down*)
+                        (let-values ([(nt-alt-info* down*) (discover-nt-alt-info (car ntalt*) nt-alt-info* up*)])
+                          (loop (cdr ntalt*) nt-alt-info* down*))))))
+              (define finish-discover-nt-alt-info
+                (lambda (alt nt-alt-info nt-alt-info* up*)
+                  (set-nt-alt-info-up*! nt-alt-info (union up* (nt-alt-info-up* nt-alt-info)))
+                  (let-values ([(nt-alt-info* down*)
+                                (process-ntalt*
+                                  (filter nonterminal-alt? (ntspec-alts (nonterminal-alt-ntspec alt (language-ntspecs ilang))))
+                                  nt-alt-info* (cons alt up*))])
+                    (set-nt-alt-info-down*! nt-alt-info down*)
+                    (values nt-alt-info* (cons alt down*)))))
+              (define discover-nt-alt-info
+                (lambda (alt nt-alt-info* up*)
+                  (let ([nt-alt-info (findf (lambda (x) (alt=? (nt-alt-info-alt x) alt)) nt-alt-info*)])
+                    (if nt-alt-info
+                        (finish-discover-nt-alt-info alt nt-alt-info nt-alt-info* up*)
+                        (let ([nt-alt-info (make-nt-alt-info alt)])
+                          (finish-discover-nt-alt-info alt nt-alt-info (cons nt-alt-info nt-alt-info*) up*))))))
+              (let-values ([(nt-alt-info* down*) (process-ntalt* (filter nonterminal-alt? (ntspec-alts ntspec)) '() '())])
+                nt-alt-info*)))
           (define build-alt-tree
             (lambda (ntspec)
               (let f ([alt* (ntspec-alts ntspec)] [ralt* '()])
@@ -1116,13 +1121,13 @@
                               alt*
                               (cons alt (f alt*)))))))))
           (define handle-pclause*
-            (lambda (pclause* else-id alt-tree ht)
+            (lambda (pclause* else-id alt-tree nt-alt-info*)
               (define partition-pclause*
                 (lambda (alt pclause pclause*)
                   (if (nonterminal-alt? alt)
-                      (let* ([nt-alt-info (hash-ref ht alt #f)]
-                              [this-and-down* (cons alt (nt-alt-info-down* nt-alt-info))]
-                              [up* (nt-alt-info-up* nt-alt-info)])
+                      (let* ([nt-alt-info (findf (lambda (x) (alt=? (nt-alt-info-alt x) alt)) nt-alt-info*)]
+                             [this-and-down* (cons alt (nt-alt-info-down* nt-alt-info))]
+                             [up* (nt-alt-info-up* nt-alt-info)])
                         (let-values ([(matching-pclause* other-pclause*)
                                        (partition (lambda (pclause)
                                                     (memf (lambda (alt) (alt=? (nano-meta-alt (pclause-lhs pclause)) alt)) this-and-down*))
@@ -1189,34 +1194,34 @@
                                   (with-syntax ([(all-tag ...) (ntspec-all-tag ntspec)])
                                     (cons #`[(let ([t (bitwise-and tag #,(language-tag-mask ilang))]) (or (= t all-tag) ...)) body] rcond-case-cl*)))))]))))))))
           (define annotate-pclause*!
-            (lambda (pclause* ntspec ht)
+            (lambda (pclause* ntspec nt-alt-info*)
               (let f ([pclause* pclause*]
-                       [alt* (filter nonterminal-alt? (ntspec-alts ntspec))]
-                       [curr-alt #f])
+                      [alt* (filter nonterminal-alt? (ntspec-alts ntspec))]
+                      [curr-alt #f])
                 (if (or (null? alt*) (null? pclause*))
                     pclause*
                     (let ([alt (car alt*)])
                       (if (nonterminal-alt? alt)
                           (f (f pclause* (ntspec-alts (nonterminal-alt-ntspec alt (language-ntspecs ilang))) alt) (cdr alt*) curr-alt)
                           (let-values ([(matching-pclause* other-pclause*)
-                                         (partition (lambda (pclause)
-                                                      (alt=? (nano-meta-alt (pclause-lhs pclause)) alt))
-                                           pclause*)])
+                                        (partition (lambda (pclause)
+                                                     (alt=? (nano-meta-alt (pclause-lhs pclause)) alt))
+                                          pclause*)])
                             (for-each
                               (lambda (pclause)
                                 (set-pclause-related-alt*! pclause
-                                  (cons curr-alt (nt-alt-info-up* (hash-ref ht curr-alt #f)))))
+                                  (cons curr-alt (nt-alt-info-up* (findf (lambda (x) (alt=? (nt-alt-info-alt x) curr-alt)) nt-alt-info*)))))
                               matching-pclause*)
                             (f other-pclause* (cdr alt*) curr-alt))))))))
           (let-values ([(pclause* else-id else-body) (parse-clauses cl*)])
             (let ([ntspec (nonterm-id->ntspec who itype (language-ntspecs ilang))])
               (maybe-add-lambdas pclause* else-id else-body
-                (let ([ht (build-ntspec-ht ntspec)])
-                  (annotate-pclause*! pclause* ntspec ht)
+                (let ([nt-alt-info* (build-nt-alt-info* ntspec)])
+                  (annotate-pclause*! pclause* ntspec nt-alt-info*)
                   #;(let-values ([(user-clause* alt*)
                   (handle-pclause* pclause* else-id
                     (if else-id '() (build-alt-tree ntspec))
-                    ht)])
+                    nt-alt-info*)])
                       (let ([system-clause* (if else-id '() (generate-system-clauses alt*))])
                         #`(cond
                             #,@user-clause*
@@ -1229,7 +1234,7 @@
                   (let-values ([(user-rec-clause* user-case-clause* alt*)
                                  (handle-pclause* pclause* else-id
                                    (if else-id '() (build-alt-tree ntspec))
-                                   ht)])
+                                   nt-alt-info*)])
                     (let-values ([(system-rec-clause* system-case-clause*)
                                    (if else-id
                                        (values
