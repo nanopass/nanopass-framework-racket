@@ -1,17 +1,12 @@
-NOTE
-=====
-
-This is an _INCOMPLETE_ port of the nanopass framework to Racket.  I am hoping over the next month or so to find enough time to get this port completed, but it is a tight schedule to make the changes I want to make.
-
--andy keep:)
-
 Nanopass Compiler Library
 ==========================
 
-This repositiory contains an R6RS version of the Nanopass Compiler Infrastructure
+This repositiory contains a Racket version of the Nanopass Compiler Infrastructure
 described in \[1, 2, 3, 4\], along with the beginnings of a test compiler for the
-library and the rough start to a users guide.  The nanopass framework currently
-supports Chez Scheme, Vicare Scheme, and Ikarus Scheme.
+library and the rough start to a users guide.  The nanopass framework for Racket
+has been tested on Racket version 6.0, 6.1, and the current development version.
+An R6RS Scheme version also exists which support Chez Scheme, Vicare Scheme, and
+Ikarus Scheme.
 
 Files
 ======
@@ -23,17 +18,14 @@ Files
     Copyright               -- copyright information
     TODO                    -- the head of the infinite todo list
     LOG                     -- change log for the nanopass framework
-    test-all.ss             -- is a simple wrapper for importing the compiler and 
+    test-all.rkt            -- is a simple wrapper for importing the compiler and 
                                performing a testing run of all of the tests.
-    nanopass.ss             -- the main interface to the nanopass compiler library
-    nanopass.chezscheme.sls -- the nanopass compiler library as a Chez Scheme library group
-    nanopass/               -- contains the parts that nanopass.ss aggregates
+    main.rkt                -- the main interface to the nanopass compiler library
+    private/                -- contains the parts that nanopass.ss aggregates
     tests/                  -- contains a testing compiler along with tests for that
                                compiler and a driver for running the tests
     doc/                    -- contains a user guide and developer guide along with a
                                makefile for generating their pdfs with pdflatex
-    lib/                    -- pre-compiled binaries for use with Petite Chez Scheme
-    bin/                    -- scripts for managing the pre-compiled binaries
 
 For more information on using the pre-compile binaries, see the README.md file
 in the `lib` directory.
