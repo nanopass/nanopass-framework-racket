@@ -22,6 +22,7 @@ Files
                                performing a testing run of all of the tests.
     main.rkt                -- the main interface to the nanopass compiler library
     private/                -- contains the parts that nanopass.ss aggregates
+    base/lang               -- contains the Racket lang definition for the nanopass framework
     tests/                  -- contains a testing compiler along with tests for that
                                compiler and a driver for running the tests
     doc/                    -- contains a user guide and developer guide along with a
