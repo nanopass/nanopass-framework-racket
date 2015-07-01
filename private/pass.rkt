@@ -26,7 +26,7 @@
                      "syntaxconvert.rkt"
                      "meta-parser.rkt"
                      "pass-helper.rkt")
-         (only-in "helpers.rkt" nanopass-record-tag nanopass-record?)
+         (only-in "helpers.rkt" nanopass-record-tag nanopass-record? list-head)
          racket/trace
          racket/splicing)
 
