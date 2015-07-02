@@ -16,7 +16,8 @@
  (run-tests maybe-tests)
  (run-tests maybe-dots-tests)
  (run-tests maybe-unparse-tests)
- (run-tests language-dot-support))
+ (run-tests language-dot-support)
+ (run-tests error-messages))
 (printf "Compiler loaded, running all tests (quietly)\n")
 (time
   (begin
