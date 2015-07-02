@@ -22,7 +22,7 @@
     
   ;; things for dealing with syntax and idetnfieris
   (contract-out
-    [all-unique-identifiers? (-> (listof syntax?) boolean?)]
+    [check-unique-identifiers (-> (or/c false/c string? symbol?)  string? syntax? (listof syntax?) void)]
     [bound-id-member? (-> identifier? (listof identifier?) boolean?)]
     [bound-id-union (-> (listof identifier?) (listof identifier?) (listof identifier?))])
   partition-syn datum
@@ -213,15 +213,16 @@
                                  #'`b)]))])
              . body))])))
 
-(define all-unique-identifiers?
-  (lambda (ls)
-    (and (andmap identifier? ls)
-         (let f ([ls ls])
-           (if (null? ls)
-               #t
-               (let ([id (car ls)] [ls (cdr ls)])
-                 (and (not (memf (lambda (x) (free-identifier=? x id)) ls))
-                      (f ls))))))))
+(define check-unique-identifiers
+  (lambda (who msg expr ls)
+    (let f ([ls ls])
+      (unless (null? ls)
+        (let ([id (car ls)] [ls (cdr ls)])
+          (cond
+            [(memf (lambda (x) (free-identifier=? x id)) ls) =>
+             (lambda (rest)
+               (raise-syntax-error who msg expr (car rest)))]
+            [else (f ls)]))))))
 
 (define-syntax with-values
   (syntax-rules ()

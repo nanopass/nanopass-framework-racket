@@ -355,8 +355,7 @@
                       [(nano-cata? nrec) (raise-syntax-error who "internal error, raw cata-syntax at top of pattern" lhs)]
                       [else (raise-syntax-error who "internal error, unexpected result of pattern parsing" lhs)]))
                   (let ([fml* (nano-meta->fml* nrec)])
-                    (unless (all-unique-identifiers? fml*)
-                      (raise-syntax-error who "pattern binds one or more identifiers more then once" lhs))
+                    (check-unique-identifiers who "pattern binds one or more identifiers more then once" lhs fml*)
                     (make-pclause nrec guard
                                   (datum->syntax #'* (gensym "rhs"))
                                   fml* #`(lambda #,fml* #,rhs #,@rhs*)))))
