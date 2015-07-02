@@ -862,24 +862,22 @@
       (check-exn
         #rx"unexpected constant as pattern, maybe missing unquote?"
         (lambda ()
-          (parameterize ([current-namespace (make-base-namespace)])
-            (namespace-require "base.rkt")
-            (eval '(let ()
-                     ;; error reported against racket version of nanopass-framework
-                     ;; from Jens Axel Søgaard
-                     ;; (github.com/akeep/nanoass-framework-racket issue #9)
-                     (define (constant? c) (number? c))
-                     (define-language L
-                       (terminals
-                         (constant (c)))
-                       (Expr (e)
-                         c))
-                     (define (parse v)
-                       (with-output-language (L Expr)
-                         (cond
-                           [(number? v) `,v]
-                           [else (error 'parse "got: " v)])))
-                     (define-pass add1 : L (e) -> L ()
-                       (Expr : Expr (e) -> Expr ()
-                         [c (guard (even? c)) (+ c 1)]))
-                     (add1 (parse 42))))))))))
+          (eval #'(let ()
+                    ;; error reported against racket version of nanopass-framework
+                    ;; from Jens Axel Søgaard
+                    ;; (github.com/akeep/nanoass-framework-racket issue #9)
+                    (define (constant? c) (number? c))
+                    (define-language L
+                      (terminals
+                        (constant (c)))
+                      (Expr (e)
+                        c))
+                    (define (parse v)
+                      (with-output-language (L Expr)
+                        (cond
+                          [(number? v) `,v]
+                          [else (error 'parse "got: " v)])))
+                    (define-pass add1 : L (e) -> L ()
+                      (Expr : Expr (e) -> Expr ()
+                        [c (guard (even? c)) (+ c 1)]))
+                    (add1 (parse 42)))))))))
