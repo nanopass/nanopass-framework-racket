@@ -593,7 +593,7 @@
               #`(begin
                   (define-struct (#,(pair-alt-name alt) #,(ntspec-struct-name ntspec))
                     (fld ...)
-                    #:prefab
+                    #:transparent
                     #:constructor-name $maker)
                   (define #,(pair-alt-maker alt)
                     (lambda (who fld ... msg ...)
