@@ -7,7 +7,8 @@
          maybe-tests
          maybe-dots-tests
          language-dot-support
-         maybe-unparse-tests)
+         maybe-unparse-tests
+         error-messages)
 
 (require rackunit
          "../private/helpers.rkt"
@@ -858,7 +859,8 @@
 #;(test-suite error-messages
 (
  ))
-(define-language Lsrc
+
+(define-language L-list-tagged
   (entry Expr)
   (terminals
    (symbol (x))
@@ -871,3 +873,29 @@
     x
     (e1 e2)
     (let-values s (b ...) e0 e1 ...)))
+
+(define error-messages
+  (test-suite "error-messages"
+    (test-case "error-regressions"
+      (check-exn
+        #rx"unexpected constant as pattern, maybe missing unquote?"
+        (lambda ()
+          (eval #'(let ()
+                    ;; error reported against racket version of nanopass-framework
+                    ;; from Jens Axel Søgaard
+                    ;; (github.com/akeep/nanoass-framework-racket issue #9)
+                    (define (constant? c) (number? c))
+                    (define-language L
+                      (terminals
+                        (constant (c)))
+                      (Expr (e)
+                        c))
+                    (define (parse v)
+                      (with-output-language (L Expr)
+                        (cond
+                          [(number? v) `,v]
+                          [else (error 'parse "got: " v)])))
+                    (define-pass add1 : L (e) -> L ()
+                      (Expr : Expr (e) -> Expr ()
+                        [c (guard (even? c)) (+ c 1)]))
+                    (add1 (parse 42)))))))))

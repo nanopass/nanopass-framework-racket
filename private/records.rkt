@@ -468,8 +468,7 @@
                                   [rec-sym (unique-symbol lang-name ntname name)]
                                   [m? (meta? name)])
                              (let-values ([(p fields levels maybes) (convert-pattern (if m? syn (stx-cdr syn)))])
-                               (unless (all-unique-identifiers? fields)
-                                 (raise-syntax-error 'define-language "found one or more duplicate fields in production" syn))
+                               (check-unique-identifiers 'define-language "found one or more duplicate fields in production" syn fields)
                                (let ([tag (+ (arithmetic-shift next bits) tag)])
                                  (set-pair-alt-tag! a tag)
                                  (set-pair-alt-pattern! a p)
@@ -597,6 +596,7 @@
               #`(begin
                   (define-struct (#,(pair-alt-name alt) #,(ntspec-struct-name ntspec))
                     (fld ...)
+                    #:prefab
                     #:constructor-name $maker)
                   (define #,(pair-alt-maker alt)
                     (lambda (who fld ... msg ...)

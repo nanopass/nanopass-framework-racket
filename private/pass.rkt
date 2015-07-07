@@ -26,7 +26,7 @@
                      "syntaxconvert.rkt"
                      "meta-parser.rkt"
                      "pass-helper.rkt")
-         (only-in "helpers.rkt" nanopass-record-tag nanopass-record?)
+         (only-in "helpers.rkt" nanopass-record-tag nanopass-record? list-head)
          racket/trace
          racket/splicing)
 
@@ -346,11 +346,17 @@
                                [else (error who "unrecognized nano-rec" nrec)])))
                       fml* nrec*))))
               (define (helper lhs guard rhs rhs*)
-                (let ([nano-meta (imeta-parser (maybe-syntax->datum itype) lhs #t)])
-                  (let ([fml* (nano-meta->fml* nano-meta)])
-                    (unless (all-unique-identifiers? fml*)
-                      (raise-syntax-error who "pattern binds one or more identifiers more then once" lhs))
-                    (make-pclause nano-meta guard
+                (let ([nrec (imeta-parser (maybe-syntax->datum itype) lhs #t)])
+                  (unless (nano-meta? nrec)
+                    (cond
+                      [(nano-quote? nrec) (raise-syntax-error who "unexpected constant as pattern, maybe missing unquote?" lhs)]
+                      [(nano-dots? nrec) (raise-syntax-error who "unexpected ellipsis as pattern" lhs)]
+                      [(nano-unquote? nrec) (raise-syntax-error who "internal error, raw unquote at top of pattern" lhs)]
+                      [(nano-cata? nrec) (raise-syntax-error who "internal error, raw cata-syntax at top of pattern" lhs)]
+                      [else (raise-syntax-error who "internal error, unexpected result of pattern parsing" lhs)]))
+                  (let ([fml* (nano-meta->fml* nrec)])
+                    (check-unique-identifiers who "pattern binds one or more identifiers more then once" lhs fml*)
+                    (make-pclause nrec guard
                                   (datum->syntax #'* (gensym "rhs"))
                                   fml* #`(lambda #,fml* #,rhs #,@rhs*)))))
               (let f ([cl* cl*] [pclause* '()])
