@@ -858,3 +858,16 @@
 #;(test-suite error-messages
 (
  ))
+(define-language Lsrc
+  (entry Expr)
+  (terminals
+   (symbol (x))
+   (syntax (s)))
+
+  (Binding (b)
+    [(x ...) e])
+
+  (Expr (e)
+    x
+    (e1 e2)
+    (let-values s (b ...) e0 e1 ...)))
