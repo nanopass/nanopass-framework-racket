@@ -856,6 +856,24 @@
   (CaseLambdaClause (cl)
     (clause (x ...) e)))
 
+#;(test-suite error-messages
+(
+ ))
+
+(define-language L-list-tagged
+  (entry Expr)
+  (terminals
+   (symbol (x))
+   (syntax (s)))
+
+  (Binding (b)
+    [(x ...) e])
+
+  (Expr (e)
+    x
+    (e1 e2)
+    (let-values s (b ...) e0 e1 ...)))
+
 (define error-messages
   (test-suite "error-messages"
     (test-case "error-regressions"
