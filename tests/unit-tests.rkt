@@ -898,4 +898,20 @@
                     (define-pass add1 : L (e) -> L ()
                       (Expr : Expr (e) -> Expr ()
                         [c (guard (even? c)) (+ c 1)]))
-                    (add1 (parse 42)))))))))
+                    (add1 (parse 42))))))
+      (check-exn
+       #rx"tests/unit-tests.rkt:896:37: parse: unrecognized output non-terminal\n  in: Foo"
+       (lambda ()
+         (eval #'(let ()
+                   (define-language Lsrc
+                     (entry Expr)
+                     (terminals
+                      (symbol (x)))
+                     (Expr (e)
+                           x))
+                   (define-pass parse : * (stx) -> Lsrc ()
+                     (definitions)
+                     (foo : * (E) -> Foo ()
+                          `,'t)
+                     (foo stx)))))))))
+

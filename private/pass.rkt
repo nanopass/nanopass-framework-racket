@@ -1378,68 +1378,64 @@
                   (format "cannot find a processor that accepts input type ~s and no output type" itype)
                   (pass-desc-name pass-desc) src-stx)))))
 
-      (define parse-proc
-        (lambda (pass-name ilang olang)
-          (lambda (x)
-            (let loop ([x x] [trace? #f] [echo? #f])
-              (syntax-case x ()
-                [(?echo ?not-colon . rest)
-                  (and (eq? (datum ?echo) 'echo) (not (eq? (datum ?not-colon) ':)))
-                  (loop #'(?not-colon . rest) trace? #t)]                  
-                [(?trace ?not-colon . rest)
-                  (and (eq? (datum ?trace) 'trace) (not (eq? (datum ?not-colon) ':)))
-                  (loop #'(?not-colon . rest) #t echo?)]
-                [(proc-name ?colon itype (arg ...) ?arrow otype (rv ...) body ...)
-                  (let ([squawk (lambda (msg what) (raise-syntax-error (maybe-syntax->datum pass-name) msg what))])
-                    (unless (identifier? #'proc-name) (squawk "invalid processor name" #'proc-name))
-                    (unless (eq? (datum ?colon) ':) (squawk "expected colon" #'?colon))
-                    (let ([maybe-itype
-                            (syntax-case #'itype ()
-                              [* (eq? (datum *) '*) #f]
-                              [id
-                                (identifier? #'id)
-                                (if ilang
-                                    (if (or (nonterm-id->ntspec? #'id (language-ntspecs ilang))
-                                            (term-id->tspec? #'id (language-tspecs ilang)))
-                                        #'id
-                                        (squawk "unrecognized input non-terminal" #'id))
-                                    (squawk "specified input non-terminal without input language" #'id))]
-                              [_ (squawk "invalid input type specifier" #'itype)])])
-                      (let ([arg* (stx->list #'(arg ...))])
-                        (when maybe-itype
-                          (when (null? arg*) (squawk "expected non-empty argument list" arg*))
-                          (unless (identifier? (car arg*)) (squawk "invalid first argument" (car arg*))))
-                        (let-values ([(fml* init*)
-                                       (let f ([arg* arg*] [dflt? #f])
-                                         (if (null? arg*)
-                                             (values '() '())
-                                             (syntax-case (car arg*) ()
-                                               [id
-                                                 (identifier? #'id)
-                                                 (if dflt?
-                                                     (squawk "missing default value" #'id)
-                                                     (let-values ([(fml* init*) (f (cdr arg*) #f)])
-                                                       (values (cons #'id fml*) init*)))]
-                                               [[id expr]
-                                                 (identifier? #'id)
-                                                 (let-values ([(fml* init*) (f (cdr arg*) #t)])
-                                                   (values (cons #'id fml*) (cons #'expr init*)))]
-                                               [arg (squawk "invalid argument specifier" #'arg)])))])
-                          (unless (eq? (datum ?arrow) '->) (squawk "expected arrow" #'?arrow))
-                          (let ([maybe-otype (syntax-case #'otype ()
-                                               [* (eq? (datum *) '*) #f]
-                                               [id
-                                                 (identifier? #'id)
-                                                 (if olang
-                                                     (if (or (nonterm-id->ntspec? #'id (language-ntspecs olang))
-                                                             (term-id->tspec? #'id (language-tspecs ilang)))
-                                                         #'id
-                                                         (squawk "unrecognized output non-terminal" #'id))
-                                                     (squawk "specified output non-terminal without output language" #'id))]
-                                               [_ (squawk "invalid output-type specifier" #'otype)])])
-                            (make-pdesc #'proc-name maybe-itype fml* init*
-                              maybe-otype (syntax->list #'(rv ...)) #'(body ...) trace? echo?))))))])))))
-
+    (define ((parse-proc pass-name ilang olang) x)
+      (let loop ([x x] [trace? #f] [echo? #f])
+        (syntax-parse x
+          [((~datum echo) (~and (~var nc) (~not (~datum :))) . rest)
+           (loop #'(nc . rest) trace? #t)]                  
+          [((~datum trace) (~and (~var nc) (~not (~datum :))) . rest)
+           (loop #'(nc . rest) #t echo?)]
+          [(proc-name ?colon itype (arg ...) ?arrow otype (rv ...) body ...)
+           (let ([squawk (lambda (msg what) (raise-syntax-error (maybe-syntax->datum pass-name) msg what))])
+             (unless (identifier? #'proc-name) (squawk "invalid processor name" #'proc-name))
+             (unless (eq? (datum ?colon) ':) (squawk "expected colon" #'?colon))
+             (let ([maybe-itype
+                    (syntax-case #'itype ()
+                      [* (eq? (datum *) '*) #f]
+                      [id
+                       (identifier? #'id)
+                       (if ilang
+                           (if (or (nonterm-id->ntspec? #'id (language-ntspecs ilang))
+                                   (term-id->tspec? #'id (language-tspecs ilang)))
+                               #'id
+                               (squawk "unrecognized input non-terminal" #'id))
+                           (squawk "specified input non-terminal without input language" #'id))]
+                      [_ (squawk "invalid input type specifier" #'itype)])])
+               (let ([arg* (stx->list #'(arg ...))])
+                 (when maybe-itype
+                   (when (null? arg*) (squawk "expected non-empty argument list" arg*))
+                   (unless (identifier? (car arg*)) (squawk "invalid first argument" (car arg*))))
+                 (let-values ([(fml* init*)
+                               (let f ([arg* arg*] [dflt? #f])
+                                 (if (null? arg*)
+                                     (values '() '())
+                                     (syntax-case (car arg*) ()
+                                       [id
+                                        (identifier? #'id)
+                                        (if dflt?
+                                            (squawk "missing default value" #'id)
+                                            (let-values ([(fml* init*) (f (cdr arg*) #f)])
+                                              (values (cons #'id fml*) init*)))]
+                                       [[id expr]
+                                        (identifier? #'id)
+                                        (let-values ([(fml* init*) (f (cdr arg*) #t)])
+                                          (values (cons #'id fml*) (cons #'expr init*)))]
+                                       [arg (squawk "invalid argument specifier" #'arg)])))])
+                   (unless (eq? (datum ?arrow) '->) (squawk "expected arrow" #'?arrow))
+                   (let ([maybe-otype
+                          (syntax-parse #'otype
+                            [(~datum *) #f]
+                            [id:id
+                             (if olang
+                                 (if (or (nonterm-id->ntspec? #'id (language-ntspecs olang))
+                                         (term-id->tspec? #'id (language-tspecs olang)))
+                                     #'id
+                                     (squawk "unrecognized output non-terminal" #'id))
+                                 (squawk "specified output non-terminal without output language" #'id))]
+                            [_ (squawk "invalid output-type specifier" #'otype)])])
+                     (make-pdesc #'proc-name maybe-itype fml* init*
+                                 maybe-otype (syntax->list #'(rv ...)) #'(body ...) trace? echo?))))))])))
+    
       (define lookup-lang
         (lambda (pass-name maybe-name)
           (if maybe-name
