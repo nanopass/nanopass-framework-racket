@@ -87,14 +87,14 @@
            (guard (symbol? var))
            (cond
              [(assq var env) => (lambda (a) `(var ,(cdr a)))]
-             [(memq var keywords) (error who "invalid reference to keyword" var)]
-             [else (error who "reference to unbound var" var)])]
+             [(memq var keywords) (error who "invalid reference to keyword ~s" var)]
+             [else (error who "reference to unbound var ~s" var)])]
           [(set! ,var ,rhs)
            (guard (not (assq 'set! env)) (symbol? var))
            (cond
              [(assq var env) => (lambda (a) `(set! ,(cdr a) ,(f rhs env)))]
-             [(memq var keywords) (error who "set! of keyword" expr)]
-             [else (error who "set! of unbound var" expr)])]
+             [(memq var keywords) (error who "set! of keyword ~s" expr)]
+             [else (error who "set! of unbound var ~s" expr)])]
           [(if ,e0 ,e1)
            (guard (not (assq 'if env)))
            `(if ,(f e0 env) ,(f e1 env))]
@@ -123,7 +123,7 @@
              (= (cadr (assq prim list-of-user-primitives)) (length rand*)))
            `(primapp ,prim ,(f* rand* env) ...)]
           [(,rator ,rand* ...) `(app ,(f rator env) ,(f* rand* env) ...)]
-          [else (error who "invalid expression" expr)])))))
+          [else (error who "invalid expression ~s" expr)])))))
 
 (define-pass verify-scheme : LP (ir) -> L0 ()
   (definitions
@@ -159,12 +159,12 @@
     [,d `(datum ,d)]
     [,x (let ([invalid? (invalid-var? x env)])
           (if invalid?
-              (error 'verify-scheme (format "reference to ~a ~s" invalid? x))
+              (error 'verify-scheme "reference to ~a ~s" invalid? x)
               `(var ,x)))]
     [(set! ,x ,e)
      (let ([invalid? (invalid-var? x env)])
        (if invalid?
-           (error 'verify-scheme (format "assignment to ~a ~s" invalid? x))
+           (error 'verify-scheme "assignment to ~a ~s" invalid? x)
            (let ([e (Expr e env)])
              `(set! ,x ,e))))]
     [(lambda (,x ...) ,body1 ... ,body2)
@@ -188,8 +188,8 @@
        [(duplicate-names? x) =>
         (lambda (x)
           (error 'verify-scheme
-            (format "duplicate bindings ~a in let form"
-              (format-list x))))]
+            "duplicate bindings ~a in let form"
+              (format-list x)))]
        [else
         (let ([e (map (lambda (x) (Expr x env)) e)])
           (let ([env (append env x)])
@@ -203,8 +203,8 @@
        [(duplicate-names? x) =>
         (lambda (x)
           (error 'verify-scheme
-            (format "duplicate bindings ~a in letrec form"
-              (format-list x))))]
+            "duplicate bindings ~a in letrec form"
+              (format-list x)))]
        [else
         (let ([env (append env x)])
           (let ([e (map (lambda (x) (Expr x env)) e)])

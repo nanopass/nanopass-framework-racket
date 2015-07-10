@@ -56,7 +56,7 @@
                            (cond
                              [(meta-name->tspec (alt-syn alt) tspecs) =>
                               (lambda (tspec) (tspec-pred tspec))]
-                             [else (error who "expected to find matching tspec" alt)])])
+                             [else (error who "expected to find matching tspec ~s" alt)])])
               #'[(term-pred? s-exp) s-exp])))
 
         (define make-nonterm-clause
@@ -106,7 +106,7 @@
                 (parse-or
                   (on-error
                     (if at-top-parse?
-                        (error who (format "invalid syntax ~s" s-exp))
+                        (error who "invalid syntax ~s" s-exp)
                         np-parse-fail-token))
                   #,@(map make-nonterm-clause nonterm-nonimp-alt*)
                   (if (pair? s-exp)
@@ -124,7 +124,7 @@
         (let ([desc-pair (lookup-language 'define-parser "unrecognized language name" lang)])
           (unless desc-pair
             (error (if trace? 'trace-define-syntax 'define-syntax)
-              "invalid language identifier" lang))
+              "invalid language identifier ~a" lang))
           (let* ([desc (car desc-pair)]
                  [ntname (language-entry-ntspec desc)]
                  [lang-name (language-name desc)]

@@ -99,8 +99,6 @@
      [(k (lang type) e cl ...)
       #`(k (lang type) e cl ...
            [else (error 'nanopass-case
-                   ; TODO: we were using $strip-wrap here, should be something like
-                   ; $make-source-oops, but at least pseudo r6rs portable if possible
                    #,(let ([si (syntax->source-info x)])
                        (if si
                            (format "empty else clause hit ~s ~a"
@@ -343,7 +341,7 @@
                                [(nano-meta? nrec) (f (nano-meta-fields nrec) fml*)]
                                [(list? nrec) (f nrec fml*)]
                                [(nano-quote? nrec) (raise-syntax-error who "quoted terminals currently unsupported in match patterns" (nano-quote-x nrec))]
-                               [else (error who "unrecognized nano-rec" nrec)])))
+                               [else (error who "unrecognized nano-rec ~s" nrec)])))
                       fml* nrec*))))
               (define (helper lhs guard rhs rhs*)
                 (let ([nrec (imeta-parser (maybe-syntax->datum itype) lhs #t)])
@@ -485,8 +483,8 @@
                           '#,(pass-desc-name pass-desc)
                           #,@out-field*
                           #,@(map (lambda (x) (format "~s" x)) (map maybe-syntax->datum in-field-name*))))]
-                    [(terminal-alt? in-altrec) (error who "unexpected terminal alt" in-altrec)]
-                    [(nonterminal-alt? in-altrec) (error who "unexpected nonterminal alt" in-altrec)])))
+                    [(terminal-alt? in-altrec) (error who "unexpected terminal alt ~s" in-altrec)]
+                    [(nonterminal-alt? in-altrec) (error who "unexpected nonterminal alt ~s" in-altrec)])))
               (cond
                 [(nonterminal-alt? alt)
                  (build-subtype-call (ntspec-name (nonterminal-alt-ntspec alt intspec*)))]
@@ -518,9 +516,9 @@
                           ; we could raise a compile time error here, otherwise we have to rely
                           ; on the runtime error
                           #`(error '#,(pass-desc-name pass-desc)
-                                   (format "no matching clause for input ~s in processor ~s"
-                                           '#,alt-syntax
-                                           '#,(pdesc-name pdesc))
+                                   "no matching clause for input ~s in processor ~s from ~s"
+                                   '#,alt-syntax
+                                   '#,(pdesc-name pdesc)
                                    #,fml))))])))
 
           (define gen-binding (lambda (t v) (if (eq? t v) '() (list #`(#,t #,v)))))
@@ -573,11 +571,11 @@
                               [(id* ...) (generate-temporaries ids)])
                   (with-syntax ([(ls ...) #'(ls1 ls2 ...)])
                     #'(let ([p proc] [ls1 arg] [ls2 arg*] ...)
-                        (unless (list? ls) (error 'who "not a proper list" ls))
+                        (unless (list? ls) (error 'who "not a proper list ~s" ls))
                         ...
                         (let ([n (length ls1)])
                           (unless (and (= (length ls2) n) ...)
-                            (error 'who "mismatched list lengths" ls1 ls2 ...)))
+                            (error 'who "mismatched list lengths ~s ~s" ls1 (list ls2 ...))))
                         (let f ([ls1 ls1] [ls2 ls2] ...)
                           (if (null? ls1)
                               (let ([id '()] ...) (values id ...))
@@ -1236,7 +1234,7 @@
                             [else #,(if else-id
                                         #`(#,else-id) 
                                         #`(error '#,(pass-desc-name pass-desc)
-                                            #,(format "unexpected ~s" (maybe-syntax->datum itype))
+                                            #,(format "unexpected ~s from ~~s" (maybe-syntax->datum itype))
                                             #,fml))])))
                   (let-values ([(user-rec-clause* user-case-clause* alt*)
                                  (handle-pclause* pclause* else-id
@@ -1261,7 +1259,7 @@
                                 [else #,(if else-id
                                             #`(#,else-id) 
                                             #`(error '#,(pass-desc-name pass-desc)
-                                                #,(format "unexpected ~s" (maybe-syntax->datum itype))
+                                                #,(format "unexpected ~s from ~~s" (maybe-syntax->datum itype))
                                                 #,fml))]))]))))))))))
 
     ; build-call and find-proc need to work in concert, so they are located near eachother
@@ -1497,7 +1495,7 @@
                   (with-syntax ([checked-body
                                   #`(unless #,(generate-output-check otype #'x (language-ntspecs olang))
                                       (error '#,(pass-desc-name pass-desc)
-                                        (format "expected ~s but got ~s" '#,(datum->syntax #'* otype) x)))])
+                                        "expected ~s but got ~s" '#,(datum->syntax #'* otype) x))])
                     (if (null? xval*)
                         #`(let ([x #,(generate-body olang otype)])
                             checked-body

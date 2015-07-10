@@ -895,7 +895,7 @@
                       (with-output-language (L Expr)
                         (cond
                           [(number? v) `,v]
-                          [else (error 'parse "got: " v)])))
+                          [else (error 'parse "got: ~s" v)])))
                     (define-pass add1 : L (e) -> L ()
                       (Expr : Expr (e) -> Expr ()
                         [c (guard (even? c)) (+ c 1)]))
@@ -982,7 +982,7 @@
                       (Term (M)
                         x))))))
       (check-exn
-        #rx"unrecognized language record"
+        #rx"unrecognized L2 language form"
         (lambda ()
           (eval #'(let ()
                     ;; error reported against Racket version of nanopass-framework

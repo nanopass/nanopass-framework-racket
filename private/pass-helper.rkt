@@ -14,4 +14,4 @@
              [(list? stx) (map f stx)]
              [(pair? stx) (cons (f (car stx)) (f (cdr stx)))]
              [(null? stx) '()]
-             [else (error 'syntax->datum-helper "unexpected type" stx)])))]))
+             [else (error 'syntax->datum-helper "unexpected type ~a" stx)])))]))

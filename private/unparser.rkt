@@ -112,7 +112,7 @@
                                             ;; note: the following two can potentially be combined
                                             #,@(apply append (map make-nonterm-clause nonterm-nonimp-alt*))
                                             #,@(apply append (map make-nonterm-clause nonterm-imp-alt*))
-                                            [else (error who "invalid record" ir)]))))))
+                                            [else (error who "unexpected language form ~s in ~s" ir '#,name)]))))))
 
     (define make-unparser
       (lambda (name lang)
@@ -142,7 +142,8 @@
                        ; TODO: should be calling the prettify function on these potentially
                        [(tspec? ir) tspec-body] ...
                        [else (error '#,name
-                                    "unrecognized language record ~s"
+                                    "unrecognized ~s language form ~s"
+                                    '#,lang
                                     ir)])])))))))
     (syntax-parse x
       [(_ name:id lang:id)

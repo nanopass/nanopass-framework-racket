@@ -21,7 +21,7 @@
                       #,@term*
                       #,@pair*
                       #,@nonterm*
-                      [else (error '#,proc-name "unrecognized term" x)]))
+                      [else (error '#,proc-name "unrecognized term ~s" x)]))
                 (let ([alt (car alt*)] [alt* (cdr alt*)])
                   (cond
                     [(terminal-alt? alt)
@@ -92,4 +92,4 @@
                          (cond
                            [(ntspec? x) (proc-name x)] ...
                            [(tspec? x) 1] ...
-                           [else (error 'name "unrecognized language record" x)])))))))))])))
+                           [else (error 'name "unrecognized language record ~s" x)])))))))))])))

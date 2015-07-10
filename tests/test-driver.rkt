@@ -48,7 +48,7 @@
            [(eq? x #f) '()]
            [(and (symbol? x) (memq x pass-names)) (list x)]
            [(and (list? x) (andmap (lambda (x) (memq x pass-names)) x)) x]
-           [else (error 'tracer (format "invalid argument ~s" x))]))])))
+           [else (error 'tracer "invalid argument ~s" x)]))])))
   
 (define test-all
   (case-lambda
@@ -108,7 +108,7 @@
              (let ([t (my-eval output-exr)])
                (unless (equal? t answer)
                  (error pass-name 
-                   (format "answer is ~s, should have been ~s" t answer)))
+                   "answer is ~s, should have been ~s" t answer))
                (let ([t (parameterize ([run-cp0 (lambda (cp0 x) x)])
                           (my-eval output-expr))])
                  (unless (equal? t answer)
@@ -182,8 +182,8 @@
              (let ([t (assemble-and-run asm-file err-file out-file)])
                (unless (equal? t answer)
                  (error 'generate-code 
-                   (format "answer is ~s, should have been ~s" 
-                     t answer)))))
+                   "answer is ~s, should have been ~s" 
+                     t answer))))
            (when (memq 'generate-code (tracer)) (print-file asm-file))))
        (reset-seed)
        (let ([expr (run original-input-expr (car (passes)) (cadr (passes)))])

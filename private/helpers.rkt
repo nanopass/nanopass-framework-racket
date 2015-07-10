@@ -409,7 +409,7 @@
   (make-parameter 2
     (lambda (n)
       (unless (and (integer? n) (<= 0 n 3))
-        (error who "invalid optimization level" n))
+        (error who "invalid optimization level ~s" n))
       n)))
 
 (define lookup-language

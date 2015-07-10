@@ -241,7 +241,7 @@
       [(nonterminal-alt? alt)
        (make-nonterminal-alt (alt-syn alt) (alt-pretty alt)
          (alt-pretty-procedure? alt) (nonterminal-alt-name alt))]
-      [else (error who "unexpected alt" alt)])))
+      [else (error who "unexpected alt ~s" alt)])))
 
 
 ;; It is enough to check for same syntax because the record-decls of the
@@ -286,14 +286,14 @@
     (cond
       [(tspec? x) (tspec-pred x)]
       [(ntspec? x) (ntspec-all-pred x)]
-      [else (error who "unrecognized type" x)])))
+      [else (error who "unrecognized type ~s" x)])))
 
 (define-who spec-type
   (lambda (x)
     (cond
       [(tspec? x) (tspec-type x)]
       [(ntspec? x) (ntspec-name x)]
-      [else (error who "unrecognized type" x)]))) 
+      [else (error who "unrecognized type ~s" x)]))) 
 
 ;;; records produced by meta parsers 
 (define-struct nano-dots (x) #:prefab)
@@ -700,4 +700,4 @@
                           (let ([apattern (pair-alt-pattern alt)])
                             (and (eq? (maybe-syntax->datum (stx-car asyn)) (maybe-syntax->datum (stx-car syn)))
                                  (equal? apattern pattern)))))))))]
-        [else (error who "unexpected alt" ialt)]))))
+        [else (error who "unexpected alt ~s" ialt)]))))
