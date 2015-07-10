@@ -249,9 +249,9 @@
                    entry-ntspec
                    (if first-ntspec first-ntspec #'ntspec)
                    terms (cons (list* #'ntspec (stx->list #'(meta* ...)) #'a #'(a* ...)) ntspecs))]
-                [(x . rest) (raise-syntax-error 'define-language "unrecognized clause" #'x)]
+                [(x . rest) (raise-syntax-error 'define-language "expected nonterminal clause of the form (keyword (meta-var ...) production-clause ...)" #'x)]
                 [x (raise-syntax-error 'define-language
-                     "unrecognized rest of language clauses" #'x)]))))
+                     "unexpected define-language syntax, ending in improper list" #'x)]))))
         (let-values ([(base-lang entry-ntspec terms ntspecs) (parse-clauses ldef)])
           (if base-lang
               (let ([base-pair (lookup-language 'define-language

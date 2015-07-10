@@ -1011,4 +1011,15 @@
                       (definitions)
                       (foo : * (E) -> Foo ()
                         `,'t)
-                      (foo stx)))))))))
+                      (foo stx))))))
+      (check-exn
+        #rx"define-language: expected nonterminal clause of the form"
+        (lambda ()
+          ;; error reported against Racket version of nanopass-framework
+          ;; from Jens Axel Søgaard
+          ;; (github.com/akeep/nanopass-framework-racket issue #22)
+          (eval #'(define-language L
+                    (entry Expr)
+                    (terminals (number (r)))
+                    (Expr r)))))
+      )))
