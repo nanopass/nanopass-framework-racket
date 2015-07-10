@@ -116,7 +116,7 @@
 
     (define make-unparser
       (lambda (name lang)
-        (let* ([l-pair (syntax-local-value lang)]
+        (let* ([l-pair (lookup-language 'define-unparser "unrecognized language name" lang)]
                [desc (car l-pair)]
                [ntspecs (language-ntspecs desc)]
                [tspecs (language-tspecs desc)])
@@ -142,7 +142,7 @@
                        ; TODO: should be calling the prettify function on these potentially
                        [(tspec? ir) tspec-body] ...
                        [else (error '#,name
-                                    "unrecognized language record"
+                                    "unrecognized language record ~s"
                                     ir)])])))))))
     (syntax-parse x
       [(_ name:id lang:id)

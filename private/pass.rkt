@@ -54,7 +54,7 @@
     [(id (lang type) b b* ...)
      #:with in-context (datum->syntax #'id 'in-context)
      #:with quasiquote (datum->syntax #'id 'quasiquote)
-     (let* ([olang-pair (syntax-local-value #'lang)]
+     (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
             [olang (and olang-pair (car olang-pair))]
             [meta-parser (and olang-pair (cdr olang-pair))])
        (unless (language? olang)
@@ -70,7 +70,7 @@
            b b* ...))]
       [(id lang b b* ...)
        #:with in-context (datum->syntax #'id 'in-context)
-       (let* ([olang-pair (syntax-local-value #'lang)]
+       (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
               [olang (and olang-pair (car olang-pair))]
               [meta-parser (and olang-pair (cdr olang-pair))])
          (unless (language? olang)
@@ -1443,7 +1443,7 @@
       (define lookup-lang
         (lambda (pass-name maybe-name)
           (if maybe-name
-              (let* ([olang-pair (syntax-local-value maybe-name)]
+              (let* ([olang-pair (lookup-language 'define-pass "unrecognized language name" maybe-name)]
                      [lang (and olang-pair (car olang-pair))]
                      [meta-parser (and olang-pair (cdr olang-pair))])
                 (unless (language? lang)

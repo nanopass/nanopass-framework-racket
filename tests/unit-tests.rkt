@@ -14,7 +14,8 @@
          "../private/helpers.rkt"
          "../private/language.rkt"
          "../private/pass.rkt"
-         "../private/parser.rkt")
+         "../private/parser.rkt"
+         "../private/unparser.rkt")
 
 (define primitives '(car cdr cons + - =))
 (define primitive? (lambda (x) (memq x primitives)))
@@ -863,7 +864,7 @@
         #rx"unexpected constant as pattern, maybe missing unquote?"
         (lambda ()
           (eval #'(let ()
-                    ;; error reported against racket version of nanopass-framework
+                    ;; error reported against Racket version of nanopass-framework
                     ;; from Jens Axel Søgaard
                     ;; (github.com/akeep/nanoass-framework-racket issue #9)
                     (define (constant? c) (number? c))
@@ -880,4 +881,102 @@
                     (define-pass add1 : L (e) -> L ()
                       (Expr : Expr (e) -> Expr ()
                         [c (guard (even? c)) (+ c 1)]))
-                    (add1 (parse 42)))))))))
+                    (add1 (parse 42))))))
+      (check-exn
+        #rx"unrecognized base language name"
+        (lambda ()
+          (eval #'(let ()
+                    ;; error reported against Racket version of nanopass-framework
+                    ;; from Jens Axel Søgaard
+                    ;; (github.com/akeep/nanopass-framework-racket issue #11)
+                    (define-language L1 (extends Lsrc) (Expr (e) (- (if e0 e1))))))))
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(let ()
+                    ;; error reported against Racket version of nanopass-framework
+                    ;; from Jens Axel Søgaard
+                    ;; (github.com/akeep/nanopass-framework-racket issue #12)
+                    (define-pass pass1 : * (s-exp) -> L () 42)))))
+      ;; variations on the issue #12 reports
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(define-pass pass1 : L (s-exp) -> * (x) 42))))
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(define-parser parse-Lundefined Lundefined))))
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(define-unparser unparse-Lundefined Lundefined))))
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(language->s-expression Lundefined))))
+      (check-exn
+        #rx"unrecognized base language name"
+        (lambda ()
+          (eval #'(diff-languages Lundefined1 Lundefined2))))
+      (check-exn
+        #rx"unrecognized target language name"
+        (lambda ()
+          (eval #'(let ()
+                    (define-language L
+                      (terminals
+                        (symbol (x)))
+                      (Expr (e)
+                        x
+                        (lambda (x) e)
+                        (e0 e1)))
+                    (diff-languages L Lundefined2)))))
+      (check-exn
+        #rx"unrecognized base language name"
+        (lambda ()
+          (eval #'(let ()
+                    (define-language L
+                      (terminals
+                        (symbol (x)))
+                      (Expr (e)
+                        x
+                        (lambda (x) e)
+                        (e0 e1)))
+                    (diff-languages Lundefined2 L)))))
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(prune-language Lundefined))))
+      (check-exn
+        #rx"unrecognized language name"
+        (lambda ()
+          (eval #'(define-pruned-language Lundefined L))))
+      (check-exn
+        #rx"unrecognized terminal syntax"
+        (lambda ()
+          (eval #'(let ()
+                    ;; error reported against Racket version of nanopass-framework
+                    ;; from Jens Axel Søgaard
+                    ;; (github.com/akeep/nanopass-framework-racket issue #13)
+                    (define-language L
+                      (terminals
+                        (symbol x))
+                      (Term (M)
+                        x))))))
+      (check-exn
+        #rx"unrecognized language record"
+        (lambda ()
+          (eval #'(let ()
+                    ;; error reported against Racket version of nanopass-framework
+                    ;; from Jens Axel Søgaard
+                    ;; (github.com/akeep/nanopass-framework-racket issue #14)
+                    (define-language L1
+                      (terminals (symbol (x)))
+                      (Term (M)
+                        (foo x)))
+                    (define-language L2
+                      (terminals (symbol (x)))
+                      (Term (M)
+                        (foo x)))
+                    (unparse-L2 (with-output-language (L1 Term) `(foo a)))))))
+      )))

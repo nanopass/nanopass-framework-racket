@@ -121,7 +121,7 @@
 
     (define make-parser
       (lambda (parser-name lang trace?)
-        (let ([desc-pair (syntax-local-value lang)])
+        (let ([desc-pair (lookup-language 'define-parser "unrecognized language name" lang)])
           (unless desc-pair
             (error (if trace? 'trace-define-syntax 'define-syntax)
               "invalid language identifier" lang))

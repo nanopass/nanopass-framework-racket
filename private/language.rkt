@@ -124,7 +124,13 @@
             [((- . ts) . terms)
              (loop #'terms
                    terms+
-                   (append terms- (parse-terms id #'ts)))]))))
+                   (append terms- (parse-terms id #'ts)))]
+            [(x . terms)
+             (raise-syntax-error 'define-language
+               "unrecognized terminal extension syntax, expected (+ term ...) or (- term ...)"
+               #'x)]
+            [x (raise-syntax-error 'define-language
+                 "unrecognized terminal extension list" #'x)]))))
 
     (define partition-ntspecs
       (lambda (ntspecs terminal-meta*)
@@ -144,12 +150,18 @@
                                 ntspecs-
                                 (cons (make-ntspec name metas alts-)
                                   ntspecs-))))]
-                    [((+ a* ...) alts ...) (plus? #'+)
-                     (g #'(alts ...) (append alts+ (parse-alts #'(a* ...) terminal-meta*))
+                    [((+ a* ...) . alts) (plus? #'+)
+                     (g #'alts (append alts+ (parse-alts #'(a* ...) terminal-meta*))
                        alts-)]
-                    [((- a* ...) alts ...) (minus? #'-)
-                     (g #'(alts ...) alts+
-                       (append alts- (parse-alts #'(a* ...) terminal-meta*)))])))))))
+                    [((- a* ...) . alts) (minus? #'-)
+                     (g #'alts alts+
+                       (append alts- (parse-alts #'(a* ...) terminal-meta*)))]
+                    [(x . alts)
+                     (raise-syntax-error 'define-language
+                       "unrecognized production extension syntax, expected (+ prod ...) or (- prod ...)"
+                       #'x)]
+                    [x (raise-syntax-error 'define-language
+                         "unrecognzied production extension list" #'x)])))))))
 
     (define parse-alts
       (lambda (alt* terminal-meta*)
@@ -162,7 +174,8 @@
                (identifier? #'s)
                (if (memq (meta-var->raw-meta-var (syntax->datum #'s)) terminal-meta*)
                    (make-terminal-alt #'s pretty pretty-procedure? #f)
-                   (make-nonterminal-alt #'s pretty pretty-procedure? #f))])))
+                   (make-nonterminal-alt #'s pretty pretty-procedure? #f))]
+              [x (raise-syntax-error 'define-language "unrecognized production syntax" #'x)])))
         (let f ([alt* alt*])
           (syntax-parse alt*
             [() '()]
@@ -181,7 +194,7 @@
              #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
              (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
             [(syn . alt*) (cons (make-alt #'syn #f #f) (f #'alt*))]
-            [_ (raise-syntax-error 'define-language "unexpected alt" alt*)]))))
+            [x (raise-syntax-error 'define-language "unrecognized production list" #'x)]))))
 
     (define parse-terms
       (lambda (id terms)
@@ -199,7 +212,9 @@
                    (cons (build-tspec #'t #'(tmeta* ...) #'handler) tspecs))]
             [((t (tmeta* ...)) . terms) 
              (loop #'terms
-                   (cons (build-tspec #'t #'(tmeta* ...) #f) tspecs))]))))
+                   (cons (build-tspec #'t #'(tmeta* ...) #f) tspecs))]
+            [(x . terms) (raise-syntax-error 'define-language "unrecognized terminal syntax" #'x)]
+            [x (raise-syntax-error 'define-language "unrecognized terminals list" #'x)]))))
 
     (define parse-language-and-finish
       (lambda (name ldef)
@@ -239,7 +254,9 @@
                      "unrecognized rest of language clauses" #'x)]))))
         (let-values ([(base-lang entry-ntspec terms ntspecs) (parse-clauses ldef)])
           (if base-lang
-              (let ([base-pair (syntax-local-value base-lang)])
+              (let ([base-pair (lookup-language 'define-language
+                                 "unrecognized base language name"
+                                 base-lang)])
                 (unless (and (pair? base-pair)
                              (language? (car base-pair))
                              (procedure? (cdr base-pair)))
@@ -399,8 +416,8 @@
           (lambda (p)
             #`(#,(ntspec-name p) #,(ntspec-meta-vars p)
                 #,@(map alt->s-expression (ntspec-alts p)))))
-        (let ([lang-pair (syntax-local-value lang)])
-          (unless lang-pair (raise-syntax-error who "language not found" lang))
+        (let ([lang-pair (lookup-language 'language->s-expression
+                           "unrecognized language name" lang)])
           (let ([lang (car lang-pair)])
             #`'(define-language #,(language-name lang)
                  (entry #,(language-entry-ntspec lang))
@@ -492,9 +509,8 @@
                [else (f (cdr nt0*) nt1* (cons #`(#,nt0-name #,(ntspec-meta-vars nt0) (- #,@(map alt-syn (ntspec-alts nt0)))) updated))]))]))))
   (syntax-case x ()
     [(_ lang0 lang1)
-     (let ([l0-pair (syntax-local-value #'lang0)] [l1-pair (syntax-local-value #'lang1)])
-       (unless l0-pair (raise-syntax-error who "language not found" #'lang0))
-       (unless l1-pair (raise-syntax-error who "language not found" #'lang1))
+     (let ([l0-pair (lookup-language 'diff-language "unrecognized base language name" #'lang0)]
+           [l1-pair (lookup-language 'diff-language "unrecognized target language name" #'lang1)])
        (let ([l0 (car l0-pair)] [l1 (car l1-pair)])
          (with-syntax ([l1-entry (language-entry-ntspec l1)]
                        [(term ...) (diff-terminals (language-tspecs l0) (language-tspecs l1))]
@@ -513,8 +529,7 @@
     (define who 'prune-language)
     (syntax-case x ()
       [(_ L)
-       (let ([l-pair (syntax-local-value #'L)])
-         (unless l-pair (raise-syntax-error who "language not found" #'L))
+       (let ([l-pair (lookup-language 'prune-language "unrecognized language name" #'L)])
          (let ([l (car l-pair)])
            (with-syntax ([((ts ...) (nts ...)) (prune-language-helper l)]
                           [entry-nt (language-entry-ntspec l)])
@@ -532,7 +547,7 @@
     (define who 'define-pruned-language)
     (syntax-case x ()
       [(_ L new-name)
-       (let ([l-pair (syntax-local-value #'L)])
+       (let ([l-pair (lookup-language 'define-pruned-language "unrecognized language name" #'L)])
          (unless l-pair (raise-syntax-error who "language not found" #'L))
          (let ([l (car l-pair)])
            (with-syntax ([((ts ...) (nts ...)) (prune-language-helper l)]

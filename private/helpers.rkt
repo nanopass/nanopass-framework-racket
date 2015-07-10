@@ -7,6 +7,9 @@
   ;; hack
   maybe-syntax->datum
 
+  ;; better error reporting for missing language definitions
+  lookup-language
+
   ;; auxiliary keywords for language/pass definitions
   extends definitions entry terminals nongenerative-id
 
@@ -408,3 +411,22 @@
       (unless (and (integer? n) (<= 0 n 3))
         (error who "invalid optimization level" n))
       n)))
+
+(define lookup-language
+  (lambda (who msg lang)
+    (call-with-exception-handler
+      (lambda (c)
+        ;; hack: really, I'd like to just call raise-syntax-error, but that
+        ;; causes the error to bubble up in a weird way, since it's
+        ;; continuation marks show it as inside the exception handler.
+        (exn:fail:syntax
+          (if (source-location? lang)
+              (format "~a: ~s: ~a\n\tat: ~s"
+                (source-location->string lang)
+                who msg (syntax->datum lang))
+              (format "~s: ~a\n\tat: ~s" who msg (syntax->datum lang)))
+          (if (exn? c)
+              (exn-continuation-marks c)
+              (current-continuation-marks))
+          (list lang)))
+      (lambda () (syntax-local-value lang)))))
