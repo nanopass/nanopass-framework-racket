@@ -461,7 +461,10 @@
                         (cond
                           [(pair-alt? a)
                            (let* ([syn (alt-syn a)]
-                                  [name (stx-car syn)]
+                                  [name (let loop ([n (stx-car syn)])
+                                          (if (identifier? n)
+                                              n
+                                              (loop (stx-car n))))]
                                   [rec-sym (unique-symbol lang-name ntname name)]
                                   [m? (meta? name)])
                              (let-values ([(p fields levels maybes) (convert-pattern (if m? syn (stx-cdr syn)))])

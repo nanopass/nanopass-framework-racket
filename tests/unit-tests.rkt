@@ -857,6 +857,24 @@
   (CaseLambdaClause (cl)
     (clause (x ...) e)))
 
+#;(test-suite error-messages
+(
+ ))
+
+(define-language L-list-tagged
+  (entry Expr)
+  (terminals
+   (symbol (x))
+   (syntax (s)))
+
+  (Binding (b)
+    [(x ...) e])
+
+  (Expr (e)
+    x
+    (e1 e2)
+    (let-values s (b ...) e0 e1 ...)))
+
 (define error-messages
   (test-suite "error-messages"
     (test-case "error-regressions"
@@ -979,4 +997,18 @@
                       (Term (M)
                         (foo x)))
                     (unparse-L2 (with-output-language (L1 Term) `(foo a)))))))
-      )))
+      (check-exn
+        #rx"parse: unrecognized output non-terminal\n  in: Foo"
+        (lambda ()
+          (eval #'(let ()
+                    (define-language Lsrc
+                      (entry Expr)
+                      (terminals
+                        (symbol (x)))
+                      (Expr (e)
+                        x))
+                    (define-pass parse : * (stx) -> Lsrc ()
+                      (definitions)
+                      (foo : * (E) -> Foo ()
+                        `,'t)
+                      (foo stx)))))))))
