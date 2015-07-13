@@ -3,6 +3,7 @@
 (define collection "nanopass")
 
 (define deps '("base"
-               "rackunit-lib"))
+               "rackunit-lib"
+               "compatibility-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"))
