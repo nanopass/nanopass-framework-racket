@@ -199,7 +199,8 @@
     (define parse-terms
       (lambda (id terms)
         (define (build-tspec t mvs maybe-handler)
-          (make-tspec t (stx->list mvs) maybe-handler (format-id id "~a?" t)))
+          (make-tspec t (stx->list mvs) maybe-handler (syntax-property (format-id id "~a?" t #:source t)
+                                                                       'original-for-check-syntax #t)))
         (let loop ([terms terms] [tspecs '()])
           (syntax-parse terms
             #:datum-literals (=>)
@@ -249,7 +250,11 @@
                    entry-ntspec
                    (if first-ntspec first-ntspec #'ntspec)
                    terms (cons (list* #'ntspec (stx->list #'(meta* ...)) #'a #'(a* ...)) ntspecs))]
-                [(x . rest) (raise-syntax-error 'define-language "expected nonterminal clause of the form (keyword (meta-var ...) production-clause ...)" #'x)]
+                [(x . rest)
+                 (raise-syntax-error
+                  'define-language
+                  "expected nonterminal clause of the form (keyword (meta-var ...) production-clause ...)"
+                  #'x)]
                 [x (raise-syntax-error 'define-language
                      "unexpected define-language syntax, ending in improper list" #'x)]))))
         (let-values ([(base-lang entry-ntspec terms ntspecs) (parse-clauses ldef)])
@@ -294,102 +299,114 @@
           [() #'()]
           [id  (identifier? #'id) #'id])))
 
-    (define finish 
-      (lambda (ntname lang id desc) ; constructs the output
-        (annotate-language! desc id)
-        (with-syntax ([(records ...) (language->lang-records desc)]
-                      [(predicates ...) (language->lang-predicates desc id)]
-                      [unparser-name (format-id id "unparse-~a" lang)]
-                      [meta-parser (make-meta-parser desc)])
-          (with-syntax ([(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
-            #;(pretty-print (list 'unparser (syntax->datum lang) (syntax->datum #'unparser)))
-            #;(pretty-print (list 'meta-parser (syntax->datum lang) (syntax->datum #'meta-parser)))
-            (let ([stx #`(begin
-                           records ...
-                           predicates ...
-                           (define-syntax #,lang
-                             (cons 
-                               ($make-language
-                                 #'#,(language-name desc)
-                                 #'#,(language-entry-ntspec desc)
-                                 (list
-                                   #,@(map (lambda (tspec)
-                                             #`(make-tspec
-                                                 #'#,(tspec-type tspec)
-                                                 (list #,@(map (lambda (mv) #`#'#,mv) (tspec-meta-vars tspec)))
-                                                 #,(let ([t (tspec-handler tspec)])
-                                                     (and t #`#'#,t))
-                                                 #'#,(tspec-pred tspec)))
-                                           (language-tspecs desc)))
-                                 (list
-                                   #,@(map (lambda (ntspec)
-                                             #`($make-ntspec
-                                                 #'#,(ntspec-name ntspec)
-                                                 (list #,@(map (lambda (mv) #`#'#,mv) (ntspec-meta-vars ntspec)))
-                                                 (list #,@(map (lambda (alt)
-                                                                 (cond
-                                                                   [(pair-alt? alt)
-                                                                    #`($make-pair-alt
-                                                                        #'#,(escape-pattern (alt-syn alt))
-                                                                        #,(let ([t (alt-pretty alt)])
-                                                                            (and t 
-                                                                                 (if (alt-pretty-procedure? alt)
-                                                                                     #`#'#,(alt-pretty alt)
-                                                                                     #`#'#,(escape-pattern (alt-pretty alt)))))
-                                                                        #,(alt-pretty-procedure? alt)
-                                                                        '#,(pair-alt-pattern alt)
-                                                                        #,(let ([t (pair-alt-field-names alt)])
-                                                                            (and t
-                                                                                 #`(list #,@(map (lambda (id) #`#'#,id) t))))
-                                                                        '#,(pair-alt-field-levels alt)
-                                                                        '#,(pair-alt-field-maybes alt)
-                                                                        #,(pair-alt-implicit? alt)
-                                                                        #,(pair-alt-tag alt)
-                                                                        #'#,(pair-alt-pred alt)
-                                                                        #'#,(pair-alt-maker alt)
-                                                                        #,(let ([t (pair-alt-accessors alt)])
-                                                                            (and t
-                                                                                 #`(list #,@(map (lambda (id) #`#'#,id) t))))
-                                                                        #'#,(pair-alt-name alt))]
-                                                                   [(terminal-alt? alt)
-                                                                    #`(make-terminal-alt
-                                                                        #'#,(escape-pattern (alt-syn alt))
-                                                                        #,(let ([t (alt-pretty alt)])
-                                                                            (and t 
-                                                                                 (if (alt-pretty-procedure? alt)
-                                                                                     #`#'#,(alt-pretty alt)
-                                                                                     #`#'#,(escape-pattern (alt-pretty alt)))))
-                                                                        #,(alt-pretty-procedure? alt)
-                                                                        #'#,(terminal-alt-type alt))]
-                                                                   [(nonterminal-alt? alt)
-                                                                    #`(make-nonterminal-alt
-                                                                        #'#,(escape-pattern (alt-syn alt))
-                                                                        #,(let ([t (alt-pretty alt)])
-                                                                            (and t 
-                                                                                 (if (alt-pretty-procedure? alt)
-                                                                                     #`#'#,(alt-pretty alt)
-                                                                                     #`#'#,(escape-pattern (alt-pretty alt)))))
-                                                                        #,(alt-pretty-procedure? alt)
-                                                                        #'#,(nonterminal-alt-name alt))]))
-                                                               (ntspec-alts ntspec)))
-                                                 #,(ntspec-tag ntspec)
-                                                 #'#,(ntspec-pred ntspec)
-                                                 #'#,(ntspec-all-pred ntspec)
-                                                 #,(let ([t (ntspec-all-term-pred ntspec)])
-                                                     (and t #`#'#,t))
-                                                 '#,(ntspec-all-tag ntspec)
-                                                 #'#,(ntspec-struct-name ntspec)))
-                                           (language-ntspecs desc)))
-                                 #'#,(language-struct desc)
-                                 #,(language-tag-mask desc))
-                               meta-parser))
-                           ;(define-property #,lang meta-parser-property meta-parser)
-                           (define-unparser unparser-name #,lang)
-                           ;(printf "testing preds:\n")
-                           ;(begin (printf "~s:\n" 'tspec-preds) (tspec-preds 'a)) ...
-                           (void))])
-                 #;(pretty-print (syntax->datum stx))
-                 stx)))))
+  (define (finish ntname lang* id desc) ; constructs the output
+    (define lang (syntax-property lang* 'original-for-check-syntax #t))
+    (annotate-language! desc id)
+    (with-syntax ([(records ...) (language->lang-records desc)]
+                  [(predicates ...) (language->lang-predicates desc id)]
+                  [unparser-name (syntax-property (format-id id "unparse-~a" lang #:source lang)
+                                                  'original-for-check-syntax #t)]
+                  [meta-parser (make-meta-parser desc)]
+                  [(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
+      #;(pretty-print (list 'unparser (syntax->datum lang) (syntax->datum #'unparser)))
+      #;(pretty-print (list 'meta-parser (syntax->datum lang) (syntax->datum #'meta-parser)))
+      (define stx
+        #`(begin
+            records ...
+            predicates ...
+            (define-syntax #,lang
+              (cons 
+               ($make-language
+                #'#,(language-name desc)
+                #'#,(language-entry-ntspec desc)
+                (list
+                 #,@(map (lambda (tspec)
+                           #`(make-tspec
+                              #'#,(tspec-type tspec)
+                              (list #,@(map (lambda (mv) #`#'#,mv) (tspec-meta-vars tspec)))
+                              #,(let ([t (tspec-handler tspec)])
+                                  (and t #`#'#,t))
+                              #'#,(tspec-pred tspec)))
+                         (language-tspecs desc)))
+                (list
+                 #,@(map (lambda (ntspec)
+                           #`($make-ntspec
+                              #'#,(ntspec-name ntspec)
+                              (list #,@(map (lambda (mv) #`#'#,mv) (ntspec-meta-vars ntspec)))
+                              (list #,@(map (lambda (alt)
+                                              (cond
+                                                [(pair-alt? alt)
+                                                 #`($make-pair-alt
+                                                    #'#,(escape-pattern (alt-syn alt))
+                                                    #,(let ([t (alt-pretty alt)])
+                                                        (and t 
+                                                             (if (alt-pretty-procedure? alt)
+                                                                 #`#'#,(alt-pretty alt)
+                                                                 #`#'#,(escape-pattern
+                                                                        (alt-pretty alt)))))
+                                                    #,(alt-pretty-procedure? alt)
+                                                    '#,(pair-alt-pattern alt)
+                                                    #,(let ([t (pair-alt-field-names alt)])
+                                                        (and t
+                                                             #`(list #,@(map (lambda (id) #`#'#,id)
+                                                                             t))))
+                                                    '#,(pair-alt-field-levels alt)
+                                                    '#,(pair-alt-field-maybes alt)
+                                                    #,(pair-alt-implicit? alt)
+                                                    #,(pair-alt-tag alt)
+                                                    #'#,(pair-alt-pred alt)
+                                                    #'#,(pair-alt-maker alt)
+                                                    #,(let ([t (pair-alt-accessors alt)])
+                                                        (and t
+                                                             #`(list #,@(map (lambda (id) #`#'#,id)
+                                                                             t))))
+                                                    #'#,(pair-alt-name alt))]
+                                                [(terminal-alt? alt)
+                                                 #`(make-terminal-alt
+                                                    #'#,(escape-pattern (alt-syn alt))
+                                                    #,(let ([t (alt-pretty alt)])
+                                                        (and t 
+                                                             (if (alt-pretty-procedure? alt)
+                                                                 #`#'#,(alt-pretty alt)
+                                                                 #`#'#,(escape-pattern
+                                                                        (alt-pretty alt)))))
+                                                    #,(alt-pretty-procedure? alt)
+                                                    #'#,(terminal-alt-type alt))]
+                                                [(nonterminal-alt? alt)
+                                                 #`(make-nonterminal-alt
+                                                    #'#,(escape-pattern (alt-syn alt))
+                                                    #,(let ([t (alt-pretty alt)])
+                                                        (and t 
+                                                             (if (alt-pretty-procedure? alt)
+                                                                 #`#'#,(alt-pretty alt)
+                                                                 #`#'#,(escape-pattern
+                                                                        (alt-pretty alt)))))
+                                                    #,(alt-pretty-procedure? alt)
+                                                    #'#,(nonterminal-alt-name alt))]))
+                                            (ntspec-alts ntspec)))
+                              #,(ntspec-tag ntspec)
+                              #'#,(ntspec-pred ntspec)
+                              #'#,(ntspec-all-pred ntspec)
+                              #,(let ([t (ntspec-all-term-pred ntspec)])
+                                  (and t #`#'#,t))
+                              '#,(ntspec-all-tag ntspec)
+                              #'#,(ntspec-struct-name ntspec)))
+                         (language-ntspecs desc)))
+                #'#,(language-struct desc)
+                #,(language-tag-mask desc))
+               meta-parser))
+            ;(define-property #,lang meta-parser-property meta-parser)
+            (define-unparser unparser-name #,lang)
+            ;(printf "testing preds:\n")
+            ;(begin (printf "~s:\n" 'tspec-preds) (tspec-preds 'a)) ...
+            (void)))
+      #;(pretty-print (syntax->datum stx))
+      (syntax-property stx
+                       'sub-range-binders
+                       (list #;(vector (syntax-local-introduce lang)
+                                     0 2
+                                     (syntax-local-introduce #'unparser-name)
+                                     8 10)))))
 
     (syntax-case x ()
       [(_ ?L ?rest ...)
@@ -506,7 +523,10 @@
                         [(alts ...)
                          (with-syntax ([(meta-vars ...) (diff-meta-vars (ntspec-meta-vars nt0) (ntspec-meta-vars nt1))])
                            (cons #`(#,nt0-name (meta-vars ...) alts ...) updated))]))))]
-               [else (f (cdr nt0*) nt1* (cons #`(#,nt0-name #,(ntspec-meta-vars nt0) (- #,@(map alt-syn (ntspec-alts nt0)))) updated))]))]))))
+               [else (f (cdr nt0*)
+                        nt1*
+                        (cons #`(#,nt0-name #,(ntspec-meta-vars nt0) (- #,@(map alt-syn (ntspec-alts nt0))))
+                              updated))]))]))))
   (syntax-case x ()
     [(_ lang0 lang1)
      (let ([l0-pair (lookup-language 'diff-language "unrecognized base language name" #'lang0)]
