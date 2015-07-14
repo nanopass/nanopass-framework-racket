@@ -2,7 +2,7 @@
 ;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
 ;;; See the accompanying file Copyright for details
 
-(provide (all-from-out racket/base)
+(provide
  define-language define-parser trace-define-parser trace-define-pass
  echo-define-pass define-pass with-output-language nanopass-case
  language->s-expression extends entry terminals nongenerative-id
