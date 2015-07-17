@@ -17,11 +17,8 @@
   (contract-out
     [ellipsis? (-> any/c boolean?)]
     [unquote? (-> any/c boolean?)]
-    [colon? (-> any/c boolean?)]
-    [arrow? (-> any/c boolean?)]
     [plus? (-> any/c boolean?)]
-    [minus? (-> any/c boolean?)]
-    [double-arrow? (-> any/c boolean?)])
+    [minus? (-> any/c boolean?)])
     
   ;; things for dealing with syntax and idetnfieris
   (contract-out
@@ -64,7 +61,8 @@
   (contract-out [list-head (-> list? exact-nonnegative-integer? list?)]))
 
 (require (for-syntax syntax/stx
-                     racket/base)
+                     racket/base
+                     syntax/parse)
          syntax/srcloc
          racket/splicing
          racket/pretty)
@@ -86,12 +84,11 @@
   (syntax-rules ()
     [(_ e) (syntax->datum #'e)]))
 
-(define-syntax with-racket-quasiquote
-  (lambda (x)
-    (syntax-case x ()
-      [(k . body)
-       (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-         #'(splicing-let-syntax ([quasiquote (syntax-rules () [(_ x) `x])]) . body))])))
+(define-syntax (with-racket-quasiquote x)
+  (syntax-parse x
+    [(k . body)
+     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #'(splicing-let-syntax ([quasiquote (syntax-rules () [(_ x) `x])]) . body)]))
 
 (define-syntax extended-quasiquote
   (lambda (x)
@@ -182,39 +179,36 @@
        (with-syntax ([body (rebuild-body #'body 0)])
          #'(quasiquote body))])))
 
-(define-syntax with-extended-quasiquote
-  (lambda (x)
-    (syntax-case x ()
-      [(k . body)
-       (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-         #'(splicing-let-syntax ([quasiquote (syntax-rules ()
-                                      [(_ x) (extended-quasiquote x)])])
+(define-syntax (with-extended-quasiquote x)
+  (syntax-parse x
+    [(k . body)
+     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #'(splicing-let-syntax ([quasiquote (syntax-rules ()
+                                           [(_ x) (extended-quasiquote x)])])
+                            . body)]))
 
-             . body))])))
-
-(define-syntax with-auto-unquote
-  (lambda (x)
-    (syntax-case x ()
-      [(k (x* ...) . body)
-       (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-         #'(splicing-let-syntax ([quasiquote
-                          (lambda (x)
-                            (define replace-vars
-                              (let ([vars (list #'x* ...)])
-                                (lambda (b)
-                                  (let f ([b b])
-                                    (syntax-case b ()
-                                      [id (identifier? #'id)
-                                       (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
-                                           #'(unquote id)
-                                           #'id)]
-                                      [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) #'(a . d))]
-                                      [atom #'atom])))))
-                            (syntax-case x ()
-                              [(_ b)
-                               (with-syntax ([b (replace-vars #'b)])
-                                 #'`b)]))])
-             . body))])))
+(define-syntax (with-auto-unquote x)
+  (syntax-parse x
+    [(k (x* ...) . body)
+     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #'(splicing-let-syntax ([quasiquote
+                              (lambda (x)
+                                (define replace-vars
+                                  (let ([vars (list #'x* ...)])
+                                    (lambda (b)
+                                      (let f ([b b])
+                                        (syntax-case b ()
+                                          [id (identifier? #'id)
+                                              (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
+                                                  #'(unquote id)
+                                                  #'id)]
+                                          [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) #'(a . d))]
+                                          [atom #'atom])))))
+                                (syntax-case x ()
+                                  [(_ b)
+                                   (with-syntax ([b (replace-vars #'b)])
+                                     #'`b)]))])
+                            . body)]))
 
 (define check-unique-identifiers
   (lambda (who msg expr ls)
@@ -296,24 +290,6 @@
     (and (identifier? x)
          (or (free-identifier=? x #'-)
              (eq? (syntax->datum x) '-)))))
-
-(define double-arrow?
-  (lambda (x)
-    (and (identifier? x)
-         (or (free-identifier=? x #'=>)
-             (eq? (syntax->datum x) '=>)))))
-
-(define colon?
-  (lambda (x)
-    (and (identifier? x)
-         (or (free-identifier=? x #':)
-             (eq? (syntax->datum x) ':)))))
-
-(define arrow?
-  (lambda (x)
-    (and (identifier? x)
-         (or (free-identifier=? x #'->)
-             (eq? (syntax->datum x) '->)))))
 
 ;;; unique-symbol produces a unique name derived the input name by
 ;;; adding a unique suffix of the form .<digit>+.  creating a unique
@@ -412,21 +388,20 @@
         (error who "invalid optimization level ~s" n))
       n)))
 
-(define lookup-language
-  (lambda (who msg lang)
-    (call-with-exception-handler
-      (lambda (c)
-        ;; hack: really, I'd like to just call raise-syntax-error, but that
-        ;; causes the error to bubble up in a weird way, since it's
-        ;; continuation marks show it as inside the exception handler.
-        (exn:fail:syntax
-          (if (source-location? lang)
-              (format "~a: ~s: ~a\n\tat: ~s"
-                (source-location->string lang)
-                who msg (syntax->datum lang))
-              (format "~s: ~a\n\tat: ~s" who msg (syntax->datum lang)))
-          (if (exn? c)
-              (exn-continuation-marks c)
-              (current-continuation-marks))
-          (list lang)))
-      (lambda () (syntax-local-value lang)))))
+(define (lookup-language who msg lang)
+ (call-with-exception-handler
+   (lambda (c)
+     ;; hack: really, I'd like to just call raise-syntax-error, but that
+     ;; causes the error to bubble up in a weird way, since it's
+     ;; continuation marks show it as inside the exception handler.
+     (exn:fail:syntax
+      (if (source-location? lang)
+          (format "~a: ~s: ~a\n\tat: ~s"
+                  (source-location->string lang)
+                  who msg (syntax->datum lang))
+          (format "~s: ~a\n\tat: ~s" who msg (syntax->datum lang)))
+      (if (exn? c)
+          (exn-continuation-marks c)
+          (current-continuation-marks))
+      (list lang)))
+   (lambda () (syntax-local-value lang))))

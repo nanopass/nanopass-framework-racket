@@ -8,6 +8,7 @@
 
 (require racket/syntax
          syntax/stx
+         syntax/parse
          (for-template racket/splicing)
          "helpers.rkt"
          "records.rkt"
@@ -269,38 +270,39 @@
   (lambda (x itype maybe?)
     (define (serror) (raise-syntax-error 'define-pass "invalid cata syntax" x))
     (define (s0 stuff)
-      (syntax-case stuff ()
-        [(: . stuff) (colon? #':) (s2 #f #'stuff)]
-        [(-> . stuff) (arrow? #'->) (s4 #f #f '() #'stuff)]
+      (syntax-parse stuff
+        #:datum-literals (: ->)
+        [(: . stuff) (s2 #f #'stuff)]
+        [(-> . stuff) (s4 #f #f '() #'stuff)]
         [(e . stuff) (s1 #'e #'stuff)]
         [() (make-nano-cata itype x #f #f '() maybe?)]
         [_ (serror)]))
     (define (s1 e stuff)
-      (syntax-case stuff ()
-        [(: . stuff) (colon? #':) (s2 e #'stuff)]
+      (syntax-parse stuff
+        #:datum-literals (: ->)
+        [(: . stuff) (s2 e #'stuff)]
         [(-> . stuff)
-         (and (arrow? #'->) (identifier? e))
+         #:when (identifier? e)
          (s4 #f (list e) '() #'stuff)]
         [(expr . stuff)
          ; it is pre-mature to check for identifier here since these could be input exprs
          #;(and (identifier? #'id) (identifier? e))
-         (identifier? e)
+         #:when (identifier? e)
          (s3 #f (list #'expr e) #'stuff)]
-        [() (identifier? e) (make-nano-cata itype x #f #f (list e) maybe?)]
+        [() #:when (identifier? e) (make-nano-cata itype x #f #f (list e) maybe?)]
         [_ (serror)]))
     (define (s2 f stuff)
-      (syntax-case stuff ()
+      (syntax-parse stuff
+        #:datum-literals (->)
         [(-> . stuff)
-         (arrow? #'->)
          (s4 f #f '() #'stuff)]
-        [(id . stuff)
-         (identifier? #'id)
+        [(id:id . stuff)
          (s3 f (list #'id) #'stuff)]
         [_ (serror)]))
     (define (s3 f e* stuff)
-      (syntax-case stuff ()
+      (syntax-parse stuff
+        #:datum-literals (->)
         [(-> . stuff)
-         (arrow? #'->)
          (s4 f (reverse e*) '() #'stuff)]
         [(e . stuff)
          ; this check is premature, since these could be input expressions
@@ -308,7 +310,7 @@
          (s3 f (cons #'e e*) #'stuff)]
         [()
          ; now we want to check if these are identifiers, because they are our return ids
-         (andmap identifier? e*)
+         #:when (andmap identifier? e*)
          (make-nano-cata itype x f #f (reverse e*) maybe?)]
         [_ (serror)]))
     (define (s4 f maybe-inid* routid* stuff)
@@ -323,35 +325,32 @@
 
 ;; used in the output of the input metaparser and in the output of
 ;; define-pass
-(define rhs-in-context-quasiquote
-  (lambda (id type omrec ometa-parser body)
-    (if type
-        (with-syntax ([quasiquote (datum->syntax id 'quasiquote)]
-                      [in-context (datum->syntax id 'in-context)])
-          #`(splicing-let-syntax ([quasiquote
-                           '#,(make-quasiquote-transformer id type omrec ometa-parser)]
-                          [in-context
-                            '#,(make-in-context-transformer id omrec ometa-parser)])
-              #,body))
-        (with-syntax ([in-context (datum->syntax id 'in-context)])
-          #`(splicing-let-syntax ([in-context
-                           '#,(make-in-context-transformer id omrec ometa-parser)])
-              #,body)))))
+(define (rhs-in-context-quasiquote id type omrec ometa-parser body)
+  (if type
+      (with-syntax ([quasiquote (syntax-local-introduce (datum->syntax id 'quasiquote))]
+                    [in-context (datum->syntax id 'in-context)])
+        #`(splicing-let-syntax ([quasiquote
+                                 '#,(make-quasiquote-transformer id type omrec ometa-parser)]
+                                [in-context
+                                 '#,(make-in-context-transformer id omrec ometa-parser)])
+                               #,body))
+      (with-syntax ([in-context (syntax-local-introduce (datum->syntax id 'in-context))])
+        #`(splicing-let-syntax ([in-context
+                                 '#,(make-in-context-transformer id omrec ometa-parser)])
+                               #,body))))
 
 ;; Done to do allow a programmer to specify what the context for
 ;; their quasiquote is, incase it is different from the current
 ;; expression.
 ;; bug fix #8 (not sure what this refers to)
-(define make-in-context-transformer
-  (lambda (pass-name omrec ometa-parser)
-    (lambda (x)
-      (syntax-case x ()
-        [(k ntname stuff ...)
-         (with-syntax ([quasiquote (datum->syntax #'k 'quasiquote)])
-           #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
-                                           #'k #'ntname
-                                           omrec ometa-parser)])
-               stuff ...))]))))
+(define ((make-in-context-transformer pass-name omrec ometa-parser) x)
+  (syntax-parse x
+    [(k ntname stuff ...)
+     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
+                                             #'k #'ntname
+                                             omrec ometa-parser)])
+                            stuff ...)]))
 
 ;; Used to make quasiquote transformers in the in-context transformer
 ;; and in the normal right hand side transformer in do-define-pass and
@@ -472,7 +471,7 @@
                                      ; directly with meta define, define-syntax or some sort of property, replace
                                      ; this with the appropriate call.  In the meantime this should allow us to
                                      ; remove some of our in-contexts
-                                     (with-syntax ([quasiquote (datum->syntax pass-name 'quasiquote)])
+                                     (with-syntax ([quasiquote (syntax-local-introduce (datum->syntax pass-name 'quasiquote))])
                                        #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
                                                                        pass-name (spec-type spec)
                                                                        omrec ometa-parser)])

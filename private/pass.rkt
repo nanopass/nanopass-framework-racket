@@ -53,7 +53,7 @@
   (syntax-parse x
     [(id (lang type) b b* ...)
      #:with in-context (datum->syntax #'id 'in-context)
-     #:with quasiquote (datum->syntax #'id 'quasiquote)
+     #:with quasiquote (syntax-local-introduce (datum->syntax #'id 'quasiquote))
      (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
             [olang (and olang-pair (car olang-pair))]
             [meta-parser (and olang-pair (cdr olang-pair))])
