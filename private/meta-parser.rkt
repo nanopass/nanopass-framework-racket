@@ -327,14 +327,15 @@
 ;; define-pass
 (define (rhs-in-context-quasiquote id type omrec ometa-parser body)
   (if type
-      (with-syntax ([quasiquote (syntax-local-introduce (datum->syntax id 'quasiquote))]
+      (with-syntax ([quasiquote #;(syntax-local-introduce (datum->syntax id 'quasiquote))
+                                (datum->syntax id 'quasiquote)]
                     [in-context (datum->syntax id 'in-context)])
         #`(splicing-let-syntax ([quasiquote
                                  '#,(make-quasiquote-transformer id type omrec ometa-parser)]
                                 [in-context
                                  '#,(make-in-context-transformer id omrec ometa-parser)])
                                #,body))
-      (with-syntax ([in-context (syntax-local-introduce (datum->syntax id 'in-context))])
+      (with-syntax ([in-context (datum->syntax id 'in-context)])
         #`(splicing-let-syntax ([in-context
                                  '#,(make-in-context-transformer id omrec ometa-parser)])
                                #,body))))
@@ -346,7 +347,7 @@
 (define ((make-in-context-transformer pass-name omrec ometa-parser) x)
   (syntax-parse x
     [(k ntname stuff ...)
-     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #:with quasiquote (datum->syntax #'k 'quasiquote)
      #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
                                              #'k #'ntname
                                              omrec ometa-parser)])
@@ -471,7 +472,7 @@
                                      ; directly with meta define, define-syntax or some sort of property, replace
                                      ; this with the appropriate call.  In the meantime this should allow us to
                                      ; remove some of our in-contexts
-                                     (with-syntax ([quasiquote (syntax-local-introduce (datum->syntax pass-name 'quasiquote))])
+                                     (with-syntax ([quasiquote (datum->syntax pass-name 'quasiquote)])
                                        #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
                                                                        pass-name (spec-type spec)
                                                                        omrec ometa-parser)])

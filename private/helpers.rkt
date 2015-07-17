@@ -87,7 +87,7 @@
 (define-syntax (with-racket-quasiquote x)
   (syntax-parse x
     [(k . body)
-     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #:with quasiquote (datum->syntax #'k 'quasiquote)
      #'(splicing-let-syntax ([quasiquote (syntax-rules () [(_ x) `x])]) . body)]))
 
 (define-syntax extended-quasiquote
@@ -182,7 +182,8 @@
 (define-syntax (with-extended-quasiquote x)
   (syntax-parse x
     [(k . body)
-     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     ;#:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #:with quasiquote (datum->syntax #'k 'quasiquote)
      #'(splicing-let-syntax ([quasiquote (syntax-rules ()
                                            [(_ x) (extended-quasiquote x)])])
                             . body)]))
@@ -190,7 +191,7 @@
 (define-syntax (with-auto-unquote x)
   (syntax-parse x
     [(k (x* ...) . body)
-     #:with quasiquote (syntax-local-introduce (datum->syntax #'k 'quasiquote))
+     #:with quasiquote (datum->syntax #'k 'quasiquote)
      #'(splicing-let-syntax ([quasiquote
                               (lambda (x)
                                 (define replace-vars
