@@ -1068,5 +1068,20 @@
                     (Expr (e)
                       (bob 2)
                       (e0 e1))))))
-
+      (check-exn
+        #rx"define-language: duplicate production in add\n  at: s"
+        (lambda ()
+          ;; error reported against Racket version of nanopass-framework
+          ;; from Jens Axel Søgaard
+          ;; (github.com/akeep/nanopass-framework-racket issue #33)
+          (eval #'(let ()
+                    (define-language L
+                      (entry e)
+                      (terminals
+                        (symbol (s)))
+                      (Expr (e)
+                        s))
+                    (define-language L1 (extends L)
+                      (Expr (e)
+                        (+ s)))))))
       )))

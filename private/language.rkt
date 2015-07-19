@@ -22,6 +22,7 @@
           "unparser.rkt"
           (for-syntax racket/syntax
                       racket/base
+                      racket/list
                       syntax/stx
                       syntax/parse
                       "helpers.rkt"
@@ -37,40 +38,35 @@
   ;; are being removed, we "mark" that we found the one to remove by
   ;; pulling it out of our removal list.  If any remain in the removal
   ;; list when we're done, we complain about it.
-  (define freshen-objects
-    (lambda (o=? fresh-o msg unpacker)
-      (rec f
-        (lambda (os os-)
-          (cond
-            [(and (null? os) (not (null? os-)))
-             (raise-syntax-error 'define-language msg (map unpacker os-))]
-            [(null? os) '()]
-            [else
-             (let g ([os- os-] [o (car os)] [checked-os- '()])
-               (cond
-                 [(null? os-) (cons (fresh-o o) (f (cdr os) checked-os-))]
-                 [(o=? o (car os-))
-                  (f (cdr os) (append checked-os- (cdr os-)))]
-                 [else (g (cdr os-) o (cons (car os-) checked-os-))]))])))))
+  (define ((freshen-objects o=? maybe-fresh-o unpack what) os os-)
+    (let ([os (foldl (lambda (o- os)
+                       (let-values ([(o os) (partition (lambda (o) (o=? o- o)) os)])
+                         (when (null? o)
+                           (raise-syntax-error 'define-language
+                             (format "unrecognized ~s in subtract" what)
+                             x (unpack o-)))
+                         os))
+                os os-)])
+      (if maybe-fresh-o
+          (map maybe-fresh-o os)
+          os)))
   
-  (define freshen-tspecs
-    (freshen-objects tspec=? values "unrecognized tspecs" tspec-type))
-  (define freshen-alts
-    (freshen-objects alt=? fresh-alt "unrecognized alts" alt-syn))
+  (define freshen-tspecs (freshen-objects tspec=? #f tspec-type 'terminal))
+  (define freshen-alts (freshen-objects alt=? fresh-alt alt-syn 'production))
+
+  (define ((add-objects o=? unpack what) os os+)
+    (foldl (lambda (o+ os)
+             (cond
+               [(memf (lambda (x) (o=? o+ x)) os) =>
+                (lambda (os)
+                  (raise-syntax-error 'define-language
+                    (format "duplicate ~s in add" what)
+                    x (unpack o+) (list (unpack (car os)))))]
+               [else (cons o+ os)]))
+      os os+))
   
-  (define add-objects
-    (lambda (o=? msg)
-      (letrec ([f (lambda (os os+)
-                    (if (null? os+)
-                        os
-                        (let ([o+ (car os+)])
-                          (when (memf (lambda (x) (o=? o+ x)) os)
-                            (raise-syntax-error 'define-language msg o+))
-                          (f (cons o+ os) (cdr os+)))))])
-        f)))
-  
-  (define add-tspecs (add-objects tspec=? "duplicate tspec in add"))
-  (define add-alts (add-objects alt=? "duplicate alt in add"))
+  (define add-tspecs (add-objects tspec=? tspec-type 'terminal))
+  (define add-alts (add-objects alt=? alt-syn 'production))
   
   (define freshen-ntspecs
     (lambda (ntspecs ntspecs-)
