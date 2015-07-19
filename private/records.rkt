@@ -462,9 +462,13 @@
                           [(pair-alt? a)
                            (let* ([syn (alt-syn a)]
                                   [name (let loop ([n (stx-car syn)])
-                                          (if (identifier? n)
-                                              n
-                                              (loop (stx-car n))))]
+                                          (cond
+                                            [(identifier? n) n]
+                                            [(stx-pair? n) (loop (stx-car n))]
+                                            [else
+                                             (raise-syntax-error 'define-language
+                                               "expected symbol keyword or meta-variable reference at start of nonterminal production"
+                                               syn (stx-car syn))]))]
                                   [rec-sym (unique-symbol lang-name ntname name)]
                                   [m? (meta? name)])
                              (let-values ([(p fields levels maybes) (convert-pattern (if m? syn (stx-cdr syn)))])

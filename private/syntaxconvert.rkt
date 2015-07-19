@@ -42,7 +42,10 @@
                  (let-values ([(x flds lvls maybes) (cvt #'x n flds lvls maybes)])
                    (values (cons x y) flds lvls maybes)))]
               [() (values '() flds lvls maybes)]
-              [oth (raise-syntax-error 'cvt "unable to find match" #'oth)]))))
+              [oth
+               (raise-syntax-error 'define-language
+                 "expected meta-variable reference or pattern in nonterminal production"
+                 pattern #'oth)]))))
     (cvt pattern 0 '() '() '())))
   
 

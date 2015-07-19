@@ -1042,7 +1042,31 @@
                     (define-pass pass1 : L (E) -> L1 ()
                       (Expr : Expr (E) -> Expr ()
                         [(,[x] (... ...)) `(call ,x (... ...))]))))))
-                    
-                    
+      (check-exn
+        #rx"define-language: expected symbol keyword or meta-variable reference at start of nonterminal production"
+        (lambda ()
+          ;; error reported against Racket version of nanopass-framework
+          ;; from Jens Axel Søgaard
+          ;; (github.com/akeep/nanopass-framework-racket issue #28)
+          (eval #'(define-language L
+                    (terminals
+                      (symbol (x)))
+                    (entry Expr)
+                    (Expr (e)
+                      (1 2)
+                      (e0 e1))))))
+      (check-exn
+        #rx"define-language: expected meta-variable reference or pattern in nonterminal production"
+        (lambda ()
+          ;; related to error reported against Racket version of nanopass-framework
+          ;; from Jens Axel Søgaard
+          ;; (github.com/akeep/nanopass-framework-racket issue #28)
+          (eval #'(define-language L
+                    (terminals
+                      (symbol (x)))
+                    (entry Expr)
+                    (Expr (e)
+                      (bob 2)
+                      (e0 e1))))))
 
       )))
