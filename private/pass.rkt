@@ -370,7 +370,7 @@
                   [([lhs rhs0 rhs1 ...] . cl*)
                    (f #'cl* (cons (helper #'lhs #t #'rhs0 #'(rhs1  ...)) pclause*))]
                   [_ (raise-syntax-error (maybe-syntax->datum (pass-desc-name pass-desc))
-                                         "invalid processor clause" (pdesc-name pdesc) (car cl*))]))))
+                                         "invalid transformer clause" (pdesc-name pdesc) (car cl*))]))))
           (define make-system-clause
             (lambda (alt)
               (define genmap
@@ -1298,14 +1298,14 @@
         (define (try-to-generate)
           (unless (and (xfmls-ok? '() '()) (xvals-ok? '()))
             (raise-syntax-error who
-              (format "cannot find a processor that accepts input type ~s and output type ~s, \
+              (format "cannot find a transformer that accepts input type ~s and output type ~s, \
                 and cannot generate one with extra formals or return values"
                 itype maybe-otype)
               (pass-desc-name pass-desc) src-stx))
           (unless (and (nonterm-id->ntspec? itype (language-ntspecs (pass-desc-maybe-ilang pass-desc)))
                        (nonterm-id->ntspec? maybe-otype (language-ntspecs (pass-desc-maybe-olang pass-desc))))
             (raise-syntax-error who
-              (format "cannot find a processor that accepts input type ~s and output type ~s, \
+              (format "cannot find a transformer that accepts input type ~s and output type ~s, \
                 and cannot generate one when either the input or output type is a terminal"
                 itype maybe-otype)
               (pass-desc-name pass-desc) src-stx))
@@ -1353,7 +1353,7 @@
                               (begin
                                 #;(printf "found ~s and ~s\n" candidate pdesc)
                                 (raise-syntax-error who
-                                  (format "ambiguous target for implicit processor call from ~s to ~s"
+                                  (format "ambiguous target for implicit transformer call from ~s to ~s"
                                     itype maybe-otype)
                                   (pass-desc-name pass-desc) src-stx))
                               pdesc)
@@ -1373,7 +1373,7 @@
                       (ospec-loop (cdr ospec*) (find-subspecs (car ospec*) sub-ospec*)))))
             (or (find-candidate #f)
                 (raise-syntax-error who
-                  (format "cannot find a processor that accepts input type ~s and no output type" itype)
+                  (format "cannot find a transformer that accepts input type ~s and no output type" itype)
                   (pass-desc-name pass-desc) src-stx)))))
 
     (define ((parse-proc pass-name ilang olang) x)
@@ -1385,7 +1385,7 @@
            (loop #'(nc . rest) #t echo?)]
           [(proc-name ?colon itype (arg ...) ?arrow otype (rv ...) body ...)
            (let ([squawk (lambda (msg what) (raise-syntax-error (maybe-syntax->datum pass-name) msg what))])
-             (unless (identifier? #'proc-name) (squawk "invalid processor name" #'proc-name))
+             (unless (identifier? #'proc-name) (squawk "invalid transformer name" #'proc-name))
              (unless (eq? (datum ?colon) ':) (squawk "expected colon" #'?colon))
              (let ([maybe-itype
                     (syntax-case #'itype ()

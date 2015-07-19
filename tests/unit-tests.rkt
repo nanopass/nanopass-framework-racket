@@ -1022,4 +1022,27 @@
                     (entry Expr)
                     (terminals (number (r)))
                     (Expr r)))))
+      (check-exn
+        #px"define-pass: cannot find a transformer that accepts input type symbol and output type symbol,\\s+and cannot generate one when either the input or output type is a terminal"
+        (lambda ()
+          ;; error reported against Racket version of nanopass-framework
+          ;; from Jens Axel Søgaard
+          ;; (github.com/akeep/nanopass-framework-racket issue #27)
+          (eval #'(let ()
+                    (define-language L
+                      (entry Expr)
+                      (terminals
+                        (symbol (x)))
+                      (Expr (e)
+                        x
+                        (x (... ...))))
+                    (define-language L1 (extends L)
+                      (Expr (e)
+                        (+ (call e0 (... ...))  => (e0 (... ...)))))
+                    (define-pass pass1 : L (E) -> L1 ()
+                      (Expr : Expr (E) -> Expr ()
+                        [(,[x] (... ...)) `(call ,x (... ...))]))))))
+                    
+                    
+
       )))

@@ -35,10 +35,10 @@
           (lambda (m level maybe?)
             (cond
               [(meta-name->tspec m tspecs) =>
-               (lambda (name)
+               (lambda (spec)
                  (let f ([level level] [x m])
                    (if (= level 0)
-                       #`(meta-parse-term '#,name #,x #,cata? #,maybe?)
+                       #`(meta-parse-term '#,(tspec-type spec) #,x #,cata? #,maybe?)
                        #`(map (lambda (x)
                                 (if (nano-dots? x)
                                     (make-nano-dots #,(f (- level 1)
@@ -241,7 +241,7 @@
       [(unquote x)
        (unquote? #'unquote)
        (if (and cata? (not (identifier? #'x)))
-           (parse-cata #'x (tspec-type tname) maybe?)
+           (parse-cata #'x tname maybe?)
            (make-nano-unquote #'x))]
       [(a . d)
        (raise-syntax-error 'meta-parse-term
