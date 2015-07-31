@@ -1,10 +1,13 @@
 #lang scribble/manual
 
-@require[@for-label[nanopass
-                    racket/base]]
+@require[@for-label[@except-in[nanopass + - * => -> ...]]]
 
 @title{Nanopass Framework Documentation}
-@author{Andrew W. Keep}
+@author["Andrew W. Keep" "Leif Andersen"]
+
+@defmodule[nanopass/base]
+The @racket[nanopass/base] library provides all of the bla.
+@defmodulelang[nanopass]
 
 @section{Overview}
 The nanopass framework provides a tool for writing compilers composed of
@@ -15,15 +18,15 @@ of new passes anywhere in the compiler.
 
 @subsection{Examples}
 The most complete, public example of the nanopass framework in use is in the
-@tt{tests/compiler.ss} file.
+@tt{tests/compiler.rkt} file.
 This is the start of a compiler implementation for a simplified subset of
-Scheme, used in a course on compiler implementation.
+Racket, used in a course on compiler implementation.
 
 @section{Defining Languages}
 
 The nanopass framework operates over a set of compiler-writer defined
 languages.
-A language definition for a simple variant of the Scheme programming language
+A language definition for a simple variant of the Racket programming language
 might look like:
 
 @racketblock[
@@ -64,7 +67,7 @@ The name of the predicate is derived from the name of the terminal, by adding a
 For the @racket[L0] language we will need to provide @racket[variable?],
 @racket[primitive?], @racket[datum?], and @racket[constant?] predicates.
 We might decided to represent variables as symbols, select a small list of
-primitives, represent datum as any Scheme value, and limit constants to those
+primitives, represent datum as any Racket value, and limit constants to those
 things that have a syntax that does not require a quote:
 
 @racketblock[
@@ -144,100 +147,91 @@ It is also possible to add new non-terminals, by simply including a new
 non-terminal form with a single @racket[+] form that adds all of the
 productions for the new non-terminal.
 
-@subsection{The @racket[define-language] form}
+@subsection{The define-language form}
 
 The full syntax for @racket[define-language] is as follows:
 
-@racketblock[
-(define-language language-name clause ...)
-]
+@defform[#:literals (extends entry terminals => + -)
+         (define-language language-name clause ...)
+         #:grammar [(clause (extends language-name)
+                            (entry non-terminal-name)
+                            (terminals terminal-clause ...)
+                            (terminals extended-terminal-clause ...)
+                            (non-terminal-name (meta-var ...)
+                              production-clause ...)
+                            (non-terminal-name (meta-var ...)
+                              extended-production-clause ...))
 
+                    (terminal-clause (terminal-name (meta-var ...))
+                                     (=> (terminal-name (meta-var ...))
+                                         prettifier)
+                                     (code:line (terminal-name (meta-var ...)) => prettifier))
+                    (extended-terminal-caluse (+ terminal-clause ...)
+                                              (- terminal-clause ...))
+
+                    (production-clause terminal-meta-var
+                                       non-terminal-meta-var
+                                       production-pattern
+                                       (keyword . production-pattern))
+
+                    (extended-production-clause (+ production-clause ...)
+                                                (- production-clause ...))
+                    ]]{
 Where @racket[clause] is an extension clause, a entry clause, a terminals clause, or a non-terminal clause.
+}
 
-@subsubsection{Extension clause.}
-The extension clause indicates that new language is an extension of an existing
-language.
-The extension clause has the following form:
+@defidform[extends]{
+The @racket[extends] clause indicates that the language is an extension of an
+existing language.
+Only one extension clause can be specified in a language definition.
+A @racket[extends] clause is an error elsewhere.
 
-@racketblock[
-(extends language-name)
-]
+@racket[language-name] is the name of an already defined language.
+}
 
-where @racket[language-name] is the name of an already defined language.
-Only one extension clause can be specified in a language definition. 
-
-@subsubsection{Entry clause.}
-The entry clause specifies which non-terminal is the starting point for this
-language.
+@defidform[entry]{
+The @racket[entry] clause specifies which non-terminal is the starting point for
+this language.
 This information is used when generating passes to determine which non-terminal
 should be expected first by the pass.
 This default can be overridden in a pass definition, as described in
-Section~@secref{sec:pass-syntax}.
-The entry clause has the following form:
-
-@racketblock[
-(entry non-terminal-name)
-]
-
-where @racket[non-terminal-name] corresponds to one of the non-terminals specified
-in this language (or the language it extends from).
+@secref{pass-syntax}.
 Only one entry clause can be specified in a language definition.
+A @racket[entry] clause is an error elsewhere.
 
-@subsubsection{Terminals clause.}
-The terminals clause specifies one or more terminals used by the language.
+@racket[non-terminal-name] corresponds to one of the non-terminals specified
+in this language (or the language it extends from).
+}
+
+@defidform[terminals]{
+The @racket[terminals] clause specifies one or more terminals used by the language.
 For instance in the @racket[L0] example language, the terminals clause
 specifies four terminal types variable, primitive, datum, and constant.
-The terminals clause has the following form:
 
-In a language that does not extend from a base language, the
-terminals clause has the following form:
+@racket[terminal-name] is the name of the terminal and a corresponding
+@racket[terminal-name?] predicate function exists to determine if a Racket
+object is of this type when checking the output of a pass.
 
-@racketblock[
-(terminals terminal-clause ...)
-]
+@racket[meta-var] is the name of a meta-variable used for referring to this
+terminal type in language and pass definitions.
 
-where @racket[terminal-clause] has one of the following forms:
-
-@racketblock[
-(terminal-name (meta-var ...))
-(=> (terminal-name (meta-var ...)) prettifier)
-(terminal-name (meta-var ...)) => prettifier
-]
-
-Here,
-@itemize[
-@item{@racket[terminal-name] is the name of the terminal and a corresponding
-@racket[terminal-name]@racket[?] predicate function exists to determine if a
-Scheme object is of this type when checking the output of a pass,}
-@item{@racket[meta-var] is the name of a meta-variable used for referring to this
-terminal type in language and pass definitions,}
-@item{and @racket[prettifier] is an expression that evaluates to a function of one
+@racket[prettifier] is an expression that evaluates to a function of one
 argument used during when the language unparser is called in ``pretty'' mode to
-produce pretty, S-expression representation.}
-]
+produce pretty, S-expression representation.
+
 The final form is syntactic sugar for the form above it.
 When the @racket[prettifier] is omitted, no processing will be done on the
 terminal when the unparser runs.
 
-When a language derives from a base language, the terminal clause has the following form:
-
-@racketblock[
-(terminals extended-terminal-clause ...)
-]
-
-where @racket[extended-terminal-clause] has one of the following forms:
-
-@racketblock[
-(+ terminal-clause ...)
-(- terminal-clause ...)
-]
-
+When a language derives from a base language, use @racket[extended-terminal-clause].
 The @racket[+] form indicates terminals that should be added to the new language.
 The @racket[-] form indicates terminals that should be removed from the list in
 the old language when producing the new language.
 Terminals not mentioned in a terminals clause will be copied into the new
 language, unchanged.
-@emph{Note} that adding and removing @racket[meta-var]s from a terminal currently requires removing the terminal type and re-adding it.
+
+@emph{Note} that adding and removing @racket[meta-var]s from a terminal
+currently requires removing the terminal type and re-adding it.
 This can be done in the same step with a terminal clause like the following:
 
 @racketblock[
@@ -246,68 +240,53 @@ This can be done in the same step with a terminal clause like the following:
   (+ (variable (x y))))
 ]
 
+A @racket[terminals] clause is an error elsewhere.
+}
+
 @subsubsection{Non-terminals clause.}
 The non-terminals clause specifies the valid productions in a language.
 Each non-terminal has a name, a set of meta-variables, and a set of
 productions.
-When the language is not extended from a base language the non-terminal clause
-has the following form:
 
-@racketblock[
-(non-terminal-name (meta-var ...)
-  production-clause
-  ...)
-]
-
-where @racket[non-terminal-name] is an identifier that names the non-terminal,
+@racket[non-terminal-name] is an identifier that names the non-terminal,
 @racket[meta-var] is the name of a meta-variable used when referring to this
 non-terminal in a language and pass definitions, and @racket[production-clause]
 has one of the following forms:
 
-@racketblock[
-terminal-meta-var
-non-terminal-meta-var
-production-s-expression
-(keyword . production-s-expression)
-]
+@racket[terminal-meta-var] is a terminal meta-variable that is a stand-alone
+production for this non-terminal.
 
-Here,
-@itemize[
-@item{@racket[terminal-meta-var] is a terminal meta-variable that is a stand-alone
-production for this non-terminal,}
-@item{@racket[non-terminal-meta-var] is a non-terminal meta-variable that
+@racket[non-terminal-meta-var] is a non-terminal meta-variable that
 indicates any form allowed by the specified non-terminal is also allowed by
-this non-terminal,}
-@item{@racket[keyword] is an identifier that must be matched exactly when parsing
+this non-terminal.
+
+@racket[keyword] is an identifier that must be matched exactly when parsing
 an S-expression representation, language input pattern, or language output
-template, and}
-@item{@racket[production-s-expression] is an S-expression that represents a
-pattern for language, and has the following form:}
-]
+template.
 
-@racketblock[
-meta-variable
-(maybe meta-variable)
-(production-s-expression ellipsis)
-(production-s-expression ellipsis production-s-expression ... . production-s-expression)
-(production-s-expression . production-s-expression)
-()
-]
+@racket[production-pattern] is an S-expression that represents a
+pattern for language, and has the following form.
 
-Here,
-@itemize[
-@item{@racket[meta-variable] is any terminal or non-terminal meta-variable,
+@racketgrammar*[(production-pattern meta-variable
+                                    (maybe meta-variable)
+                                    (production-pattern-sequence ...)
+                                    (production-pattern-sequence ...
+                                      . production-pattern))
+                (production-pattern-sequence production-pattern
+                                             (code:line ... (code:comment
+                                                             "literal ...")))]
+
+@racket[meta-variable] is any terminal or non-terminal meta-variable,
 extended with an arbitrary number of digits, followed by an arbitrary
 combination of @racket[*], @racket[?], or @racket[^] characters, for example,
 if the meta-variable is @racket[e] then @racket[e1], @racket[e*], @racket[e?],
-@racket[e4*?] are all valid meta-variable expressions;}
-@item{@racket[(maybe meta-variable)] indicates that an element in the
+@racket[e4*?] are all valid meta-variable expressions.
+
+@racket[(maybe meta-variable)] indicates that an element in the
 production is either of the type of the meta-variable or bottom (represented by
-@racket[#f]);}
-@item{and @racket[ellipsis] is the literal @racket[...] and indicates a list of
-the @racket[production-s-expression] that proceeds it is expected.}
-]
-Thus, Scheme language forms such as @racket[let] can be represented as a
+@racket[#f]).
+
+Thus, Racket language forms such as @racket[let] can be represented as a
 language production as:
 
 @racketblock[
@@ -328,22 +307,8 @@ though this would be slightly different from the normal named let form, in that
 the non-named form would then need an explicit @racket[#f] to indicate no name
 was specified.
 
-When a language extends from a base language the non-terminal clause has a
-slightly different form:
-
-@racketblock[
-(non-terminal-name (meta-var ...)
-  extended-production-clause
-  ...)
-]
-
-where @racket[extended-production-clause] has the following form:
-
-@racketblock[
-(+ production-clause ...)
-(- production-clause ...)
-]
-
+When a language extends from a base language then use
+@racket[extended-production-clause].
 The @racket[+] form indicates non-terminal productions that should be added to
 the non-terminal in the new language.
 The @racket[-] form indicates non-terminal productions that should be removed
@@ -356,26 +321,27 @@ non-terminal will be dropped in the new language.
 Conversely, new non-terminals can be added by naming the new non-terminal and
 using the @racket[+] form to specify the productions of the new non-terminal.
 
-@subsection{Products of @racket[define-language]}
-
-
+@subsection{Products of define-language}
 The @racket[define-language] form produces three user-visible objects:
 @itemize[
-@item{a parser (named @racket[parse-language name]) that can be used to
+@item{a parser (named @racket[parse-language-name]) that can be used to
 parse an S-expression into a record-based representation that is used
 internally by the nanopass framework;}
-@item{an unparser (named @racket[unparse-language name]) that can be used
+@item{an unparser (named @racket[unparse-language-name]) that can be used
 to unparse a record-based representation back into an S-expression; and}
 @item{a language definition, bound to the specified @racket[language-name].}
 ]
 
 The language definition is used when the @racket[language-name] is specified as
 the base of a new language definition and in the definition of a pass.
-The @racket[language-name] can also be used with the
-@racket[language->s-expression] to retrieve a pretty-printed version of the
-full language definition.
-This can be helpful when using extended languages, such as in the case of
-@racket[L1]:
+
+@defform[(language->s-expression language-name)]{
+Produces an S-expression based on the @racket[language-name].
+
+For extended languages, this will produce an S-expression for the full
+language.
+
+In the case of @racket[L1]:
 
 @racketblock[
 (language->s-expression L1)
@@ -400,8 +366,9 @@ Will return:
     (if e0 e1 e2)
     (e0 e1 ...)))
 ]
+}
 
-@section{Defining Passes}
+@section[#:tag "pass-syntax"]{Defining Passes}
 
 Passes are used to specify transformations over languages defined using
 @racket[define-language].
@@ -502,65 +469,59 @@ So let's try again:
 This is a much simpler way to write the pass, though both are valid ways of
 writing the pass.
 
-@subsection{The @racket[define-pass] syntactic form}
+@subsection{The define-pass form}
 
-@racketblock[
-(define-pass name : lang-specifier (fml ...) -> lang-specifier (extra-return-val ...)
-  definitions-clause
-  processor ...
-  body-expr)
-]
+@defform[#:literals (* definitions -> : guard else)
+         (define-pass name : lang-specifier (formal ...)
+                           -> lang-specifier (extra-return-val ...)
+           definitions-clause
+           processor ...
+           body-expr)
+         #:grammar [(language-specifier language-name
+                                        (language-name non-terminal-name)
+                                        *)
 
-\[
-\begin{array}{rcl}
-lang\mhyphen specifier &::=& language\mhyphen name\\
-&|& {\hbox{\tt (}}language\mhyphen name\ non\mhyphen terminal\mhyphen name{\hbox{\tt )}}\\
-&|& {\hbox{\tt *}}\\
-definitions\mhyphen clause &::=& none\\
-&|& {\hbox{\tt (definitions}}\ defn \ldots {\hbox{\tt )}}\\
-procesor &::=& {\hbox{\tt (}}processor\mhyphen name\ {\hbox{\tt :}}\ non\mhyphen terminal\mhyphen spec\ {\hbox{\tt (}}fml \ldots {\hbox{\tt ) ->}}\\
-&& \qquad \quad non\mhyphen terminal\mhyphen spec\ {\hbox{\tt (}}extra\mhyphen return\mhyphen val \ldots {\hbox{\tt )}}\\
-&& \qquad definitions\mhyphen clause\\
-&& \qquad processor\mhyphen clause \ldots {\hbox{\tt )}}\\
-&|& {\hbox{\tt (}}processor\mhyphen name\ {\hbox{\tt :}}\ {\hbox{\tt *}}\ {\hbox{\tt (}}fml \ldots {\hbox{\tt )}}\ {\hbox{\tt ->}}\\
-&& \qquad \quad non\mhyphen terminal\mhyphen spec\ {\hbox{\tt (}}extra\mhyphen return\mhyphen val \ldots {\hbox{\tt )}}\\
-&& \qquad definitions\mhyphen clause\\
-&& \qquad expr \ldots {\hbox{\tt )}}\\
-&|& {\hbox{\tt (}}processor\mhyphen name\ {\hbox{\tt :}}\ {\hbox{\tt *}}\ {\hbox{\tt (}}fml \ldots {\hbox{\tt )}}\ {\hbox{\tt ->}}\ {\hbox{\tt *}}\ {\hbox{\tt (}}return\mhyphen val \ldots {\hbox{\tt )}}\\
-&& \qquad definitions\mhyphen clause\\
-&& \qquad body\mhyphen expr \ldots {\hbox{\tt )}}\\
-&|& {\hbox{\tt (}}processor\mhyphen name\ {\hbox{\tt :}}\ non\mhyphen terminal\mhyphen spec\ {\hbox{\tt (}}fml \ldots {\hbox{\tt )}}\ {\hbox{\tt ->}}\ {\hbox{\tt *}}\ {\hbox{\tt (}}return\mhyphen val \ldots {\hbox{\tt )}}\\
-&& \qquad definitions\mhyphen clause\\
-&& \qquad body\mhyphen processor\mhyphen clause \ldots {\hbox{\tt )}}\\
-processor\mhyphen clause &::=& {\hbox{\tt [}}pattern\ expr\ expr \ldots {\hbox{\tt ]}}\\
-&|& {\hbox{\tt [}}pattern\ guard\ expr\ expr \ldots{\hbox{\tt ]}}\\
-&|& {\hbox{\tt [else}}\ expr\ expr \ldots{\hbox{\tt ]}}\\
-body\mhyphen processor\mhyphen clause &::=& {\hbox{\tt [}}pattern\ body\mhyphen expr\ body\mhyphen expr \ldots{\hbox{\tt ]}}\\
-&|& {\hbox{\tt [}}pattern\ guard\ body\mhyphen expr\ body\mhyphen expr \ldots {\hbox{\tt ]}}\\
-&|& {\hbox{\tt [else}}\ body\mhyphen expr\ body\mhyphen expr \ldots {\hbox{\tt ]}}\\
-guard &::=& {\hbox{\tt (guard}}\ expr\ expr \ldots {\hbox{\tt )}}
-\end{array}
-\]
+                    (definitions-clause (code:line)
+                      (definitions definition-clause ...))
 
-\noindent
-Where
-@itemize[
-@item{@racket[name] is the name of the pass,}
-@item{@racket[fml] is an identifier representing a formal argument,}
-@item{@racket[language-name] is an identifier corresponding to a defined language,}
-@item{@racket[non-terminal-name] is a name in that language,}
-@item{@racket[extra-return-val] and @racket[return-val] are Scheme expressions,}
-@item{@racket[expr] is a Scheme expression that can contain a
-@racket[quasiquote-expr], }
-@item{@racket[defn] is a Scheme definition, and}
-@item{@racket[body-expr] is a Scheme expression; where}
-@item{@racket[quasiquote-expr] is a Scheme quasiquote expression that corresponds
-to a form of the output non-terminal specified in a processor.}
-]
+                    (processor (processor-name
+                                : non-terminal-spec (formal ...)
+                                -> non-terminal-spec (extra-return-val ...)
+                                definition-clause
+                                processor-clause ...
+                                ))
 
-@subsection{The @racket[quasiquote] clause}
+                    (non-terminal-spec non-terminal-name
+                                       *)
 
-The @racket[define-pass] macro re-binds the Scheme quasiquote to use as a way
+                    (processor-clause [pattern body-expr ...+]
+                                      [pattern (guard expr ...+) body-expr ..+]
+                                      [else body-expr ...+]
+                                      [expr ...+])]]{
+@racket[name] is the name of the pass.
+
+@racket[formal] is an identifier representing a formal argument.
+
+@racket[language-name] is an identifier corresponding to a defined language.
+
+@racket[non-terminal-name] is a name in that language.
+
+@racket[extra-return-val] is a Racket expression.
+
+@racket[expr] is a Racket expression that can contain a
+@racket[quasiquote-expr].
+
+@racket[definition] is a Racket definition.
+
+@racket[body-expr] is a Racket expression.
+
+@racket[quasiquote-expr] is a Racket quasiquote expression that corresponds to
+a form of the output non-terminal specified in a processor.
+}
+
+@subsection{The quasiquote clause}
+
+The @racket[define-pass] macro re-binds the Racket quasiquote to use as a way
 to construct records in the output language.
 Similar to the patterns in a processor clause, the quasiquote expression can be
 arbitrarily nested to create language records nested within other language
@@ -592,7 +553,7 @@ If this were simply an S-expression, we might imagine that we could construct
 an output record as:
 
 @racketblock[
-; binding*: is ([x0 e0] ... [xn en])
+(code:comment "binding*: is ([x0 e0] ... [xn en])")
 (let ([binding* (f ---)])
   `(let (,binding* ...) ,body))
 ]
@@ -603,7 +564,7 @@ Instead it is necessary to destructure the @racket[binding*] list before
 including it in the quasiquoted expression:
 
 @racketblock[
-; binding*: is ([x0 e0] ... [xn en])
+(code:comment "binding*: is ([x0 e0] ... [xn en])")
 (let ([binding* (f ---)])
   (let ([x* (map car binding*)]
         [e* (map cadr binding*)])
@@ -656,7 +617,7 @@ forms, but cannot leave out any of the input terms.
 This feature is currently implemented in the framework, but it is possible to
 get into trouble with this feature.
 In general, there are two cases where undesired clauses can be auto-generated.
-@itemize[ @;\begin{enumerate}
+@itemize[
 @item{A nested pattern in a clause matches all posible clauses, but because the
 pattern is nested the framework cannot determine this.
 In this case, the
@@ -678,16 +639,12 @@ the reason why this feature is still experimental.
 Cata-morphisms are defined in patterns as an unquoted S-expression.  A
 cata-morphism has the following syntax:
 
-\[
-\begin{array}{rcl}
-cata\mhyphen morphism &::=& {\hbox{\tt ,[}}identifier \ldots {\hbox{\tt ]}}\\
-&|& {\hbox{\tt ,[}}idenitifer\ expr \ldots\ {\hbox{\tt ->}}\ identifier \ldots {\hbox{\tt ]}}\\
-&|& {\hbox{\tt ,[}}func\mhyphen expr\ {\hbox{\tt :}}\ identifier\ expr \ldots\ {\hbox{\tt ->}}\ identifier \ldots {\hbox{\tt ]}}\\
-&|& {\hbox{\tt ,[}}func\mhyphen expr\ {\hbox{\tt :}}\ {\hbox{\tt ->}}\ identifer \ldots {\hbox{\tt ]}}\\
-\end{array}
-\]
+@racketgrammar*[(cata-morphism ,[identifier ...]
+                               ,[identifier expr ... -> identifer ...]
+                               ,[func-expr : identifier expr ... -> identifier ...]
+                               ,[func-expr : -> identifier ...])]
 
-Where @racket[expr] is a Scheme expression, @racket[func-expr] is an expression that
+Where @racket[expr] is a Racket expression, @racket[func-expr] is an expression that
 results in a function, and @racket[identifier] is an identifier that will be bound
 to the input subexpression when it is on the left of the @racket[-] and the return
 value(s) of the func when it is on the right side.
