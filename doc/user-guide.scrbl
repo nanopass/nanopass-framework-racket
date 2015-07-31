@@ -2,7 +2,7 @@
 
 @require[@for-label[@except-in[nanopass + - * => -> ...]]]
 
-@title{Nanopass Framework Documentation}
+@title{Nanopass Framework}
 @author["Andrew W. Keep" "Leif Andersen"]
 
 @defmodule[nanopass/base]
@@ -16,7 +16,6 @@ The goal of this organization is both to simplify the understanding of each
 pass, because it is responsible for a single task, and to simplify the addition
 of new passes anywhere in the compiler.
 
-@subsection{Examples}
 The most complete, public example of the nanopass framework in use is in the
 @tt{tests/compiler.rkt} file.
 This is the start of a compiler implementation for a simplified subset of
@@ -436,7 +435,7 @@ language.
 Each variable in the pattern is denoted by unquote (@tt{,}).
 When the unquote is followed by an S-expression (as is the case in of
 @racket[,[e*]] and @racket[,[e]] in @racket[(begin ,[e*] ...  ,[e])]) it
-indicates a cata-morphism.
+indicates a @seclink["cata-morphism"]{cata-morphism}.
 The cata-morphism performs automatic recursion on the subform mentioned.
 
 Looking again at the example pass, we might notice that the
@@ -497,7 +496,7 @@ writing the pass.
                     (processor-clause [pattern body-expr ...+]
                                       [pattern (guard expr ...+) body-expr ..+]
                                       [else body-expr ...+]
-                                      [expr ...+])]]{
+                                      expr)]]{
 @racket[name] is the name of the pass.
 
 @racket[formal] is an identifier representing a formal argument.
@@ -517,9 +516,19 @@ writing the pass.
 
 @racket[quasiquote-expr] is a Racket quasiquote expression that corresponds to
 a form of the output non-terminal specified in a processor.
-}
 
-@subsection{The quasiquote clause}
+@racket[non-terminal-spec] determines the behavior of a processor.
+If the processor's input @racket[non-terminal-spec] is a @racket[*],
+then the body of the processor are racket expressions rather then nanopass
+expressions.
+If the processor's output @racket[non-terminal-spec] is a @racket[*],
+then @racket[quasiquote] will be Racket's @racket[quasiquote],
+rather then generating the output language.
+Additionally, the first value in @racket[extra-return-val] will be the default
+first value returned from the processor.
+
+Otherwise, the @racket[non-terminal-spec] describes the non terminal for the
+input and output languages.
 
 The @racket[define-pass] macro re-binds the Racket quasiquote to use as a way
 to construct records in the output language.
@@ -570,6 +579,30 @@ including it in the quasiquoted expression:
         [e* (map cadr binding*)])
     `(let ([,x* ,e*] ...) ,body)))
 ]
+}
+@subsection[#:tag "cata-morphism"]{Cata-morphims}
+
+Cata-morphisms are defined in patterns as an unquoted S-expression.  A
+cata-morphism has the following syntax:
+
+@racketgrammar*[(cata-morphism ,[identifier ...]
+                               ,[identifier expr ... -> identifer ...]
+                               ,[func-expr : identifier expr ... -> identifier ...]
+                               ,[func-expr : -> identifier ...])]
+
+Where @racket[expr] is a Racket expression, @racket[func-expr] is an expression that
+results in a function, and @racket[identifier] is an identifier that will be bound
+to the input subexpression when it is on the left of the @racket[-] and the return
+value(s) of the func when it is on the right side.
+
+When the @racket[func-expr] is not specified, @racket[define-pass] attempts to find or
+auto-generate an appropriate processor.  When the @racket[func-expr] is the name of
+a processor, the input non-terminal, output non-terminal, and number of input
+expressions and return values will be checked to ensure they match.
+
+If the input expressions are omitted the first input will be the sub-expression
+and additional values will be taken from the formals for the containing
+processor by name.
 
 @subsection{Auto-generated clauses}
 
@@ -613,7 +646,6 @@ input-language non-terminal.
 This means it is possible for the output-language non-terminal to contain extra
 forms, but cannot leave out any of the input terms.
 
-@subsubsection{An experimental feature}
 This feature is currently implemented in the framework, but it is possible to
 get into trouble with this feature.
 In general, there are two cases where undesired clauses can be auto-generated.
@@ -634,26 +666,3 @@ The first item is a solvable problem, though we have not yet invested the
 development time to fix it.  The second problem is more difficult to solve, and
 the reason why this feature is still experimental.
 
-@subsection{Cata-morphims}
-
-Cata-morphisms are defined in patterns as an unquoted S-expression.  A
-cata-morphism has the following syntax:
-
-@racketgrammar*[(cata-morphism ,[identifier ...]
-                               ,[identifier expr ... -> identifer ...]
-                               ,[func-expr : identifier expr ... -> identifier ...]
-                               ,[func-expr : -> identifier ...])]
-
-Where @racket[expr] is a Racket expression, @racket[func-expr] is an expression that
-results in a function, and @racket[identifier] is an identifier that will be bound
-to the input subexpression when it is on the left of the @racket[-] and the return
-value(s) of the func when it is on the right side.
-
-When the @racket[func-expr] is not specified, @racket[define-pass] attempts to find or
-auto-generate an appropriate processor.  When the @racket[func-expr] is the name of
-a processor, the input non-terminal, output non-terminal, and number of input
-expressions and return values will be checked to ensure they match.
-
-If the input expressions are omitted the first input will be the sub-expression
-and additional values will be taken from the formals for the containing
-processor by name.
