@@ -18,13 +18,14 @@ Files
     Copyright               -- copyright information
     TODO                    -- the head of the infinite todo list
     LOG                     -- change log for the nanopass framework
-    test-all.rkt            -- is a simple wrapper for importing the compiler and 
-                               performing a testing run of all of the tests.
     main.rkt                -- the main interface to the nanopass compiler library
+    base.rkt                -- the main interface to the nanopass/base compiler library
     private/                -- contains the parts that nanopass.ss aggregates
-    base/lang               -- contains the Racket lang definition for the nanopass framework
+    lang/reader.rkt         -- contains the Racket lang definition for the nanopass framework
     tests/                  -- contains a testing compiler along with tests for that
                                compiler and a driver for running the tests
+    tests/test-all.rkt      -- is a simple wrapper for importing the compiler and
+                               performing a testing run of all of the tests.
     doc/                    -- contains a user guide and developer guide along with a
                                makefile for generating their pdfs with pdflatex
 
