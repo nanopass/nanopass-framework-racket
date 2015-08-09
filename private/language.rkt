@@ -392,7 +392,7 @@
                                (- (syntax-position lang) 1)
                                (+ (syntax-position lang)
                                   (syntax-span lang))
-                               (format "Langauge ~a:~n~a"
+                               (format "Language ~a:~n~a"
                                        (syntax-e lang)
                                        (pretty-format/write
                                         (language->s-expression-internal desc)))))))

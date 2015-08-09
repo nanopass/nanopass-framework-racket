@@ -77,7 +77,7 @@
                 (+ (syntax-position #'type)
                    (syntax-span #'type)
                    -1)
-                (format "Langauge ~a:~n~a"
+                (format "Language ~a:~n~a"
                         (syntax-e #'lang)
                         (pretty-format/write
                          (language->s-expression-internal olang))))))]
@@ -101,7 +101,7 @@
                 (+ (syntax-position #'lang)
                    (syntax-span #'lang)
                    -1)
-                (format "Langauge ~a:~n~a"
+                (format "Language ~a:~n~a"
                         (syntax-e #'lang)
                         (pretty-format/write
                          (language->s-expression-internal olang))))))]))
