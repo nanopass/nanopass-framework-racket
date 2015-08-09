@@ -15,6 +15,7 @@
   nonterminal-alt-name
   terminal-alt-type
   ntspec-tag
+  language->s-expression-internal
   (contract-out
     [find-spec (-> identifier? language? (or/c tspec? ntspec?))]
     [nonterminal-meta? (-> identifier? (listof ntspec?) boolean?)]
@@ -705,3 +706,21 @@
                             (and (eq? (maybe-syntax->datum (stx-car asyn)) (maybe-syntax->datum (stx-car syn)))
                                  (equal? apattern pattern)))))))))]
         [else (error who "unexpected alt ~s" ialt)]))))
+
+(define (language->s-expression-internal lang [handler? #f])
+  (define (tspec->s-expression t)
+    (if (and handler? (tspec-handler t))
+        `(=> (,(syntax->datum (tspec-type t)) ,(map syntax->datum (tspec-meta-vars t)))
+             ,(syntax->datum (tspec-handler t)))
+        `(,(syntax->datum (tspec-type t)) ,(map syntax->datum (tspec-meta-vars t)))))
+  (define (alt->s-expression a)
+    (if (and handler? (alt-pretty a))
+        `(=> ,((syntax->datum alt-syn a)) ,(syntax->datum (alt-pretty a)))
+        (syntax->datum (alt-syn a))))
+  (define (ntspec->s-expression p)
+    `(,(syntax->datum (ntspec-name p)) ,(map syntax->datum (ntspec-meta-vars p))
+      ,@(map alt->s-expression (ntspec-alts p))))
+  `(define-language ,(syntax->datum (language-name lang))
+     (entry ,(syntax->datum (language-entry-ntspec lang)))
+     (terminals ,@(map tspec->s-expression (language-tspecs lang)))
+     ,@(map ntspec->s-expression (language-ntspecs lang))))

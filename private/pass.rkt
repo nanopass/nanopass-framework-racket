@@ -21,6 +21,8 @@
                      syntax/stx
                      syntax/parse
                      racket/base
+                     racket/pretty
+                     unstable/pretty
                      "helpers.rkt"
                      "records.rkt"
                      "syntaxconvert.rkt"
@@ -61,13 +63,24 @@
          (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
        (unless (procedure? meta-parser)
          (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
-       #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
-                                      #'id #'type olang
-                                      meta-parser)]
-                      [in-context '#,(make-in-context-transformer
-                                      #'id olang
-                                      meta-parser)])
-           b b* ...))]
+       (syntax-property
+        #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
+                                                #'id #'type olang
+                                                meta-parser)]
+                                [in-context '#,(make-in-context-transformer
+                                                #'id olang
+                                                meta-parser)])
+                               b b* ...)
+        'mouse-over-tooltips
+        (vector x
+                (- (syntax-position #'lang) 1)
+                (+ (syntax-position #'type)
+                   (syntax-span #'type)
+                   -1)
+                (format "Langauge ~a:~n~a"
+                        (syntax-e #'lang)
+                        (pretty-format/write
+                         (language->s-expression-internal olang))))))]
       [(id lang b b* ...)
        #:with in-context (datum->syntax #'id 'in-context)
        (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
@@ -77,10 +90,21 @@
            (raise-syntax-error 'with-output-language "unrecognized language" #'lang))
          (unless (procedure? meta-parser)
            (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
-         #`(splicing-let-syntax
-               ([in-context '#,(make-in-context-transformer #'id olang
-                                                            meta-parser)])
-             b b* ...))]))
+         (syntax-property
+          #`(splicing-let-syntax
+             ([in-context '#,(make-in-context-transformer #'id olang
+                                                          meta-parser)])
+             b b* ...)
+        'mouse-over-tooltips
+        (vector #'lang
+                (- (syntax-position #'lang) 1)
+                (+ (syntax-position #'lang)
+                   (syntax-span #'lang)
+                   -1)
+                (format "Langauge ~a:~n~a"
+                        (syntax-e #'lang)
+                        (pretty-format/write
+                         (language->s-expression-internal olang))))))]))
 
 (define-syntax (nanopass-case x)
   ; (nanopass-case (lang type) id ---) rebinds id so that it always holds the
@@ -1529,12 +1553,35 @@
                          xval* maybe-itype maybe-otype maybe-ometa-parser maybe-body)])
             (echo-pass
               (with-syntax ([who (datum->syntax pass-name 'who)])
-                #`(define #,pass-name
-                    (lambda #,fml*
-                      (define who '#,pass-name)
-                      #,@defn*
-                      #,@(make-processors pass-desc maybe-imeta-parser maybe-ometa-parser)
-                      #,body))))))))
+                (syntax-property
+                 #`(define #,pass-name
+                     (lambda #,fml*
+                       (define who '#,pass-name)
+                       #,@defn*
+                       #,@(make-processors pass-desc maybe-imeta-parser maybe-ometa-parser)
+                       #,body))
+                 'mouse-over-tooltips
+                 (cons
+                  (and maybe-iname maybe-ilang
+                       (vector maybe-iname
+                               (- (syntax-position maybe-iname) 1)
+                               (+ (syntax-position maybe-iname)
+                                  (syntax-span maybe-iname)
+                                  -1)
+                               (format "Language ~a:~n~a"
+                                       (syntax-e maybe-iname)
+                                       (pretty-format/write
+                                        (language->s-expression-internal maybe-ilang)))))
+                  (and maybe-oname maybe-olang
+                       (vector maybe-oname
+                               (- (syntax-position maybe-oname) 1)
+                               (+ (syntax-position maybe-oname)
+                                  (syntax-span maybe-oname)
+                                  -1)
+                               (format "Language ~a:~n~a"
+                                       (syntax-e maybe-oname)
+                                       (pretty-format/write
+                                        (language->s-expression-internal maybe-olang)))))))))))))
 
     (syntax-case x ()
       [(_ pass-name ?colon iname (fml ...) ?arrow oname (xval ...) stuff ...)
@@ -1565,7 +1612,7 @@
                  (if (stx-null? stuff*)
                      (s2 defn* processor* #f echo?)
                      (let ([stuff (stx-car stuff*)])
-                       (if (let processor? ([stuff stuff] [mcount 0])                        
+                       (if (let processor? ([stuff stuff] [mcount 0])
                              (syntax-case stuff ()
                                [(pname ?colon itype (fml ...) ?arrow otype (xval ...) . more)
                                 (and  (eq? (datum ?colon) ':)

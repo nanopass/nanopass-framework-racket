@@ -25,6 +25,7 @@
                       racket/list
                       syntax/stx
                       syntax/parse
+                      unstable/pretty
                       "helpers.rkt"
                       "language-helpers.rkt"
                       "records.rkt"
@@ -297,14 +298,12 @@
                                                   'original-for-check-syntax #t)]
                   [meta-parser (make-meta-parser desc)]
                   [(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
-      #;(pretty-print (list 'unparser (syntax->datum lang) (syntax->datum #'unparser)))
-      #;(pretty-print (list 'meta-parser (syntax->datum lang) (syntax->datum #'meta-parser)))
       (define stx
         #`(begin
             records ...
             predicates ...
             (define-syntax #,lang
-              (cons 
+              (cons
                ($make-language
                 #'#,(language-name desc)
                 #'#,(language-entry-ntspec desc)
@@ -386,52 +385,48 @@
                meta-parser))
             ;(define-property #,lang meta-parser-property meta-parser)
             (define-unparser unparser-name #,lang)
-            ;(printf "testing preds:\n")
-            ;(begin (printf "~s:\n" 'tspec-preds) (tspec-preds 'a)) ...
             (void)))
-      #;(pretty-print (syntax->datum stx))
       (syntax-property stx
-                       'sub-range-binders
-                       (list #;(vector (syntax-local-introduce lang)
-                                       0 2
-                                       (syntax-local-introduce #'unparser-name)
-                                       8 10)))))
-  
+                       'mouse-over-tooltips
+                       (vector lang
+                               (- (syntax-position lang) 1)
+                               (+ (syntax-position lang)
+                                  (syntax-span lang))
+                               (format "Langauge ~a:~n~a"
+                                       (syntax-e lang)
+                                       (pretty-format/write
+                                        (language->s-expression-internal desc)))))))
+
   (syntax-case x ()
     [(_ ?L ?rest ...)
      (identifier? #'?L)
      (parse-language-and-finish #'?L #'(?rest ...))]))
 
-(define-syntax language->s-expression
-  (lambda (x)
-    (define who 'language->s-expression)
-    (define doit
-      (lambda (lang handler?)
-        (define tspec->s-expression
-          (lambda (t)
-            (if (and handler? (tspec-handler t))
-                #`(=> (#,(tspec-type t) #,(tspec-meta-vars t))
-                      #,(tspec-handler t))
-                #`(#,(tspec-type t) #,(tspec-meta-vars t)))))
-        (define alt->s-expression
-          (lambda (a)
-            (if (and handler? (alt-pretty a))
-                #`(=> #,(alt-syn a) #,(alt-pretty a))
-                (alt-syn a))))
-        (define ntspec->s-expression
-          (lambda (p)
-            #`(#,(ntspec-name p) #,(ntspec-meta-vars p)
-                                 #,@(map alt->s-expression (ntspec-alts p)))))
-        (let ([lang-pair (lookup-language 'language->s-expression
-                                          "unrecognized language name" lang)])
-          (let ([lang (car lang-pair)])
-            #`'(define-language #,(language-name lang)
-                 (entry #,(language-entry-ntspec lang))
-                 (terminals #,@(map tspec->s-expression (language-tspecs lang)))
-                 #,@(map ntspec->s-expression (language-ntspecs lang)))))))
-    (syntax-case x ()
-      [(_ lang) (identifier? #'lang) (doit #'lang #f)]
-      [(_ lang handler?) (identifier? #'lang) (doit #'lang (syntax->datum #'handler?))])))
+(define-syntax (language->s-expression x)
+  (define who 'language->s-expression)
+  (define (doit lang handler?)
+    (define (tspec->s-expression t)
+      (if (and handler? (tspec-handler t))
+          #`(=> (#,(tspec-type t) #,(tspec-meta-vars t))
+                #,(tspec-handler t))
+          #`(#,(tspec-type t) #,(tspec-meta-vars t))))
+    (define (alt->s-expression a)
+      (if (and handler? (alt-pretty a))
+          #`(=> #,(alt-syn a) #,(alt-pretty a))
+          (alt-syn a)))
+    (define (ntspec->s-expression p)
+      #`(#,(ntspec-name p) #,(ntspec-meta-vars p)
+          #,@(map alt->s-expression (ntspec-alts p))))
+    (let ([lang-pair (lookup-language 'language->s-expression
+                                      "unrecognized language name" lang)])
+      (let ([lang (car lang-pair)])
+        #`'(define-language #,(language-name lang)
+             (entry #,(language-entry-ntspec lang))
+             (terminals #,@(map tspec->s-expression (language-tspecs lang)))
+             #,@(map ntspec->s-expression (language-ntspecs lang))))))
+  (syntax-case x ()
+    [(_ lang) (identifier? #'lang) (doit #'lang #f)]
+    [(_ lang handler?) (identifier? #'lang) (doit #'lang (syntax->datum #'handler?))]))
 
 (define-syntax diff-languages
   (lambda (x)
