@@ -112,23 +112,69 @@
   (syntax-parse x
     #:literals (else)
     [(k (lang type) x:id cl ... [else b0 b1 ...])
-     #:with quasiquote (datum->syntax #'k 'quasiquote) ; if we were in a rhs, pick-up the output quasiquote
-     #'(let ()
-         (define-pass p : (lang type) (x) -> * (val)
-           (proc : type (x) -> * (val) cl ... [else b0 b1 ...])
-           (proc x))
-         (p x))]
-     [(k (lang type) e cl ... [else b0 b1 ...])
-      #'(let ([ir e]) (k (lang type) ir cl ... [else b0 b1 ...]))]
-     [(k (lang type) e cl ...)
-      #`(k (lang type) e cl ...
-           [else (error 'nanopass-case
-                   #,(let ([si (syntax->source-info x)])
-                       (if si
-                           (format "empty else clause hit ~s ~a"
-                             (maybe-syntax->datum x) si)
-                           (format "empty else clause hit ~s"
-                             (maybe-syntax->datum x)))))])]))
+     ; if we were in a rhs, pick-up the output quasiquote
+     #:with quasiquote (datum->syntax #'k 'quasiquote)
+     (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
+            [olang (and olang-pair (car olang-pair))])
+       (unless (language? olang)
+         (raise-syntax-error 'nanopass-case "unrecognized language" #'lang))
+       (syntax-property
+        #'(let ()
+            (define-pass p : (lang type) (x) -> * (val)
+              (proc : type (x) -> * (val) cl ... [else b0 b1 ...])
+              (proc x))
+            (p x))
+        'mouse-over-tooltips
+        (vector #'lang
+                (- (syntax-position #'lang) 1)
+                (+ (syntax-position #'type)
+                   (syntax-span #'type)
+                   -1)
+                (format "Language ~a:~n~a"
+                        (syntax-e #'lang)
+                        (pretty-format/write
+                         (language->s-expression-internal olang))))))]
+    [(k (lang type) e cl ... [else b0 b1 ...])
+     (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
+            [olang (and olang-pair (car olang-pair))])
+       (unless (language? olang)
+         (raise-syntax-error 'nanopass-case "unrecognized language" #'lang))
+       (syntax-property
+        #'(let ([ir e]) (k (lang type) ir cl ... [else b0 b1 ...]))
+        'mouse-over-tooltips
+        (vector #'lang
+                (- (syntax-position #'lang) 1)
+                (+ (syntax-position #'type)
+                   (syntax-span #'type)
+                   -1)
+                (format "Language ~a:~n~a"
+                        (syntax-e #'lang)
+                        (pretty-format/write
+                         (language->s-expression-internal olang))))))]
+    [(k (lang type) e cl ...)
+     (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
+            [olang (and olang-pair (car olang-pair))])
+       (unless (language? olang)
+         (raise-syntax-error 'nanopass-case "unrecognized language" #'lang))
+       (syntax-property
+        #`(k (lang type) e cl ...
+             [else (error 'nanopass-case
+                          #,(let ([si (syntax->source-info x)])
+                              (if si
+                                  (format "empty else clause hit ~s ~a"
+                                          (maybe-syntax->datum x) si)
+                                  (format "empty else clause hit ~s"
+                                          (maybe-syntax->datum x)))))])
+        'mouse-over-tooltips
+        (vector #'lang
+                (- (syntax-position #'lang) 1)
+                (+ (syntax-position #'type)
+                   (syntax-span #'type)
+                   -1)
+                (format "Language ~a:~n~a"
+                        (syntax-e #'lang)
+                        (pretty-format/write
+                         (language->s-expression-internal olang))))))]))
 
 (define-syntax trace-define-pass
   (lambda (x)
