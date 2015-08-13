@@ -7,6 +7,7 @@
   nonterm-id->ntspec
   $make-language
   $make-ntspec
+  language-unparser
   language-struct
   $make-pair-alt
   ntspec-struct-name
@@ -139,7 +140,7 @@
                        (only-in "helpers.rkt" nanopass-record)))
 
 (define-struct language
-  (name entry-ntspec tspecs ntspecs struct (tag-mask #:mutable))
+  (name entry-ntspec tspecs ntspecs struct unparser (tag-mask #:mutable))
   #:prefab #:constructor-name $make-language)
 
 (define make-language
@@ -167,7 +168,10 @@
                   (spec-meta-vars test-spec))))))))
     (lambda (name entry-ntspec tspecs ntspecs)
       (check-meta! name tspecs ntspecs)
-      ($make-language name entry-ntspec tspecs ntspecs (format-id name "~a-struct" name) #f))))
+      ($make-language name entry-ntspec tspecs ntspecs
+                      (format-id name "~a-struct" name)
+                      (format-id name "unparse-out-~a" name)
+                      #f))))
 
 (define-struct tspec (type meta-vars handler pred) #:prefab)
 
@@ -529,7 +533,10 @@
                                           (ntspec-pred ntspec)
                                           #`(lambda (x)
                                               (or ((let () (define-values (t) #,(ntspec-pred ntspec)) t) x)
-                                                  #,@(map (lambda (pred) #`((let () (define-values (t) #,pred) t) x)) pred*))))]
+                                                  #,@(map (lambda (pred)
+                                                            #`((let () (define-values (t) #,pred) t)
+                                                               x))
+                                                          pred*))))]
                             [all-term-pred (cond
                                              [(null? term-pred*) #f]
                                              [(null? (cdr term-pred*)) (car term-pred*)]
@@ -546,7 +553,8 @@
                            (let ([pred (tspec-pred (terminal-alt-tspec alt tspec*))])
                              (f (cdr alt*) (cons pred pred*) (cons pred term-pred*) tag))]
                           [(nonterminal-alt? alt)
-                           (let-values ([(pred term-pred new-tag) (annotate-all-pred! (nonterminal-alt-ntspec alt ntspec*))])
+                           (let-values ([(pred term-pred new-tag)
+                                         (annotate-all-pred! (nonterminal-alt-ntspec alt ntspec*))])
                              (f (cdr alt*) (cons pred pred*)
                                 (if term-pred (cons term-pred term-pred*) term-pred*)
                                 (append new-tag tag)))]))))]))))
@@ -556,88 +564,90 @@
           (let ([ntalt-tag-bits (foldl (annotate-alt*! bits) 0 ntspec*)])
             (for-each annotate-all-pred! ntspec*)))))))
 
-(define language->lang-records
-  (lambda (lang)
-    (let ([lang-rec-id (language-struct lang)]
-          [ntspecs (language-ntspecs lang)]
-          [tspecs (language-tspecs lang)])
-      (define alt->lang-record
-        (lambda (ntspec alt)
-          ; TODO: handle fld and msgs that are lists.
-          (define build-field-check
-            (lambda (fld msg level maybe?)
-              (with-values 
-                (cond
-                  [(nonterminal-meta->ntspec fld ntspecs) =>
-                   (lambda (ntspec) (values (ntspec-all-pred ntspec) (ntspec-name ntspec)))]
-                  [(terminal-meta->tspec fld tspecs) =>
-                   (lambda (tspec) (values (tspec-pred tspec) (tspec-type tspec)))]
-                  [else (raise-syntax-error 'define-language
-                          (format "unrecognized meta-variable in language ~s"
-                            (maybe-syntax->datum (language-name lang)))
-                          fld)])
-                (lambda (pred? name)
-                  (with-syntax ([pred? (if maybe?
-                                           #`(lambda (x) (or (eq? x #f) (#,pred? x)))
-                                           pred?)])
-                    #`(#,(let f ([level level])
-                           (if (= level 0)
-                               #`(lambda (x)
-                                   (unless (pred? x)
-                                     (let ([msg #,msg])
-                                       (if msg
-                                           (error who
-                                             "expected ~s but received ~s in field ~s of ~s from ~a"
-                                             '#,name x '#,fld '#,(alt-syn alt) msg)
-                                           (error who
-                                             "expected ~s but received ~s in field ~s of ~s"
-                                             '#,name x '#,fld '#,(alt-syn alt))))))
-                               #`(lambda (x)
-                                   (for-each #,(f (- level 1)) x))))
-                        #,fld))))))
-          (with-syntax ([(fld ...) (pair-alt-field-names alt)])
-            (with-syntax ([(msg ...) (generate-temporaries #'(fld ...))]
-                          [$maker (format-id (pair-alt-name alt) "$~a" (pair-alt-maker alt))])
-              #`(begin
-                  (define-struct (#,(pair-alt-name alt) #,(ntspec-struct-name ntspec))
-                    (fld ...)
-                    #:transparent
-                    #:constructor-name $maker)
-                  (define #,(pair-alt-maker alt)
-                    (lambda (who fld ... msg ...)
-                      #,@(if (= (optimize-level) 3)
-                             '()
-                             (map build-field-check
-                               (syntax->list #'(fld ...))
-                               (syntax->list #'(msg ...))
-                               (pair-alt-field-levels alt)
-                               (pair-alt-field-maybes alt)))
-                      ($maker #,(pair-alt-tag alt) fld ...))))))))
-      (define ntspec->lang-record
-        (lambda (ntspec)
-          #`(define-struct (#,(ntspec-struct-name ntspec) #,lang-rec-id) () #:prefab)))
-      (define ntspecs->lang-records
-        (lambda (ntspec*)
-          (let f ([ntspec* ntspec*] [ntrec* '()] [altrec* '()])
-            (if (null? ntspec*)
-                #`(#,ntrec* #,altrec*)
-                (let ([ntspec (car ntspec*)])
-                  (let g ([alt* (ntspec-alts ntspec)] [altrec* altrec*])
-                    (if (null? alt*)
-                        (f (cdr ntspec*)
-                          (cons (ntspec->lang-record ntspec) ntrec*)
-                          altrec*)
-                        (let ([alt (car alt*)])
-                          (if (pair-alt? alt)
-                              (g (cdr alt*)
-                                (cons (alt->lang-record ntspec alt) altrec*))
-                              (g (cdr alt*) altrec*))))))))))
+(define (language->lang-records lang)
+  (define lang-rec-id (language-struct lang))
+  (define lang-unparser-id (language-unparser lang))
+  (define ntspecs (language-ntspecs lang))
+  (define tspecs (language-tspecs lang))
+  (define (alt->lang-record ntspec alt)
+    ; TODO: handle fld and msgs that are lists.
+    (define (build-field-check fld msg level maybe?)
+      (with-values
+        (cond
+          [(nonterminal-meta->ntspec fld ntspecs) =>
+           (lambda (ntspec) (values (ntspec-all-pred ntspec) (ntspec-name ntspec)))]
+          [(terminal-meta->tspec fld tspecs) =>
+           (lambda (tspec) (values (tspec-pred tspec) (tspec-type tspec)))]
+          [else (raise-syntax-error 'define-language
+                                    (format "unrecognized meta-variable in language ~s"
+                                            (maybe-syntax->datum (language-name lang)))
+                                    fld)])
+        (lambda (pred? name)
+          (with-syntax ([pred? (if maybe?
+                                   #`(lambda (x) (or (eq? x #f) (#,pred? x)))
+                                   pred?)])
+            #`(#,(let f ([level level])
+                   (if (= level 0)
+                       #`(lambda (x)
+                           (unless (pred? x)
+                             (let ([msg #,msg])
+                               (if msg
+                                   (error who
+                                          "expected ~s but received ~s in field ~s of ~s from ~a"
+                                          '#,name x '#,fld '#,(alt-syn alt) msg)
+                                   (error who
+                                          "expected ~s but received ~s in field ~s of ~s"
+                                          '#,name x '#,fld '#,(alt-syn alt))))))
+                       #`(lambda (x)
+                           (for-each #,(f (- level 1)) x))))
+                #,fld)))))
+    (with-syntax ([(fld ...) (pair-alt-field-names alt)])
+      (with-syntax ([(msg ...) (generate-temporaries #'(fld ...))]
+                    [$maker (format-id (pair-alt-name alt) "$~a" (pair-alt-maker alt))])
+        #`(begin
+            (define-struct (#,(pair-alt-name alt) #,(ntspec-struct-name ntspec))
+              (fld ...)
+              #:transparent
+              #:methods gen:custom-write
+              [(define write-proc #,lang-unparser-id)]
+              #:constructor-name $maker)
+            (define #,(pair-alt-maker alt)
+              (lambda (who fld ... msg ...)
+                #,@(if (= (optimize-level) 3)
+                       '()
+                       (map build-field-check
+                            (syntax->list #'(fld ...))
+                            (syntax->list #'(msg ...))
+                            (pair-alt-field-levels alt)
+                            (pair-alt-field-maybes alt)))
+                ($maker #,(pair-alt-tag alt) fld ...)))))))
+  (define (ntspec->lang-record ntspec)
+    #`(define-struct (#,(ntspec-struct-name ntspec) #,lang-rec-id) () #:transparent ;#:prefab
+        #:methods gen:custom-write
+        [(define write-proc #,lang-unparser-id)]))
+  (define (ntspecs->lang-records ntspec*)
+    (let f ([ntspec* ntspec*] [ntrec* '()] [altrec* '()])
+      (if (null? ntspec*)
+          #`(#,ntrec* #,altrec*)
+          (let ([ntspec (car ntspec*)])
+            (let g ([alt* (ntspec-alts ntspec)] [altrec* altrec*])
+              (if (null? alt*)
+                  (f (cdr ntspec*)
+                     (cons (ntspec->lang-record ntspec) ntrec*)
+                     altrec*)
+                  (let ([alt (car alt*)])
+                    (if (pair-alt? alt)
+                        (g (cdr alt*)
+                           (cons (alt->lang-record ntspec alt) altrec*))
+                        (g (cdr alt*) altrec*)))))))))
 
-      (with-syntax ([((ntrec ...) (altrec ...))
-                     (ntspecs->lang-records ntspecs)])
-          #`((define-struct (#,lang-rec-id nanopass-record) () #:prefab)
-             ntrec ...
-             altrec ...)))))
+  (with-syntax ([((ntrec ...) (altrec ...))
+                 (ntspecs->lang-records ntspecs)])
+    #`((define-struct (#,lang-rec-id nanopass-record) () #:transparent ;#:prefab
+         #:methods gen:custom-write
+         [(define write-proc #,lang-unparser-id)])
+       ntrec ...
+       altrec ...)))
 
 (define language->lang-predicates
   (lambda (desc id)

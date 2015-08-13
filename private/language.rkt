@@ -296,10 +296,19 @@
                   [(predicates ...) (language->lang-predicates desc id)]
                   [unparser-name (syntax-property (format-id id "unparse-~a" lang #:source lang)
                                                   'original-for-check-syntax #t)]
+                  [unparser-out-name (language-unparser desc)]
                   [meta-parser (make-meta-parser desc)]
                   [(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
       (define stx
         #`(begin
+            (define (unparser-out-name lang port mode)
+              (define-unparser unparser-name #,lang)
+              (define unparsed (format "#(language:~a ~a)"
+                                       '#,lang
+                                       (unparser-name lang)))
+              (cond [(eq? mode #f) (display unparsed port)]
+                    [(eq? mode #t) (display unparsed port)]
+                    [else          (display unparsed port)]))
             records ...
             predicates ...
             (define-syntax #,lang
@@ -381,6 +390,7 @@
                               #'#,(ntspec-struct-name ntspec)))
                          (language-ntspecs desc)))
                 #'#,(language-struct desc)
+                #'#,(language-unparser desc)
                 #,(language-tag-mask desc))
                meta-parser))
             ;(define-property #,lang meta-parser-property meta-parser)
