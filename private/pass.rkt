@@ -891,7 +891,7 @@
                                  [dflt* (pdesc-dflt* callee-pdesc)])
                              (with-syntax ([(earg* ...)
                                             (let ([n (- (length id*) (length dflt*))])
-                                              #`(#,@(list-head id* n)
+                                              #`(#,@(take id* n)
                                                  #,@(map (lambda (id dflt)
                                                            (if (memf (lambda (x) (bound-identifier=? id x))
                                                                      fml*)
