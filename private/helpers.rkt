@@ -57,8 +57,7 @@
   (contract-out [np-parse-fail-token (and/c symbol? (not/c symbol-interned?))])
 
   ;; handy syntactic stuff
-  with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote
-  (contract-out [list-head (-> list? exact-nonnegative-integer? list?)]))
+  with-racket-quasiquote with-extended-quasiquote extended-quasiquote with-auto-unquote)
 
 (require (for-syntax syntax/stx
                      racket/base
@@ -72,13 +71,6 @@
     (if (syntax? x)
         (syntax->datum x)
         x)))
-
-(define list-head
-  (lambda (ls n)
-    (let loop ([ls ls] [n n])
-      (if (= n 0)
-          '()
-          (cons (car ls) (loop (cdr ls) (- n 1)))))))
 
 (define-syntax datum
   (syntax-rules ()

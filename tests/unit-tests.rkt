@@ -1084,4 +1084,24 @@
                     (define-language L1 (extends L)
                       (Expr (e)
                         (+ s)))))))
+      (check-exn
+        #rx"invalid transformer clause"
+        (lambda ()
+          ;; error reported against Racket version of nanopass-framework
+          ;; from Jens Axel Søgaard
+          ;; (github.com/akeep/nanopass-framework-racket issue #40)
+          (eval #'(let ()
+                    (define-language L
+                      (terminals
+                        (symbol (s)))
+                      (Expr (e)
+                        s
+                        (lambda (s) e)
+                        (e0 s1)))
+                    (define-pass foo : L (ir) -> * ()
+                      (Expr : Expr (e) -> * ()
+                        [(lambda (,s) ,e (list 'lambda (list s) (Expr e)))]
+                        [(,e0 ,e1) (list (Expr e0) (Expr e1))]
+                        [,s s])
+                      (Expr ir))))))
       )))

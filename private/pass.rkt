@@ -28,7 +28,8 @@
                      "syntaxconvert.rkt"
                      "meta-parser.rkt"
                      "pass-helper.rkt")
-         (only-in "helpers.rkt" nanopass-record-tag nanopass-record? list-head)
+         (only-in "helpers.rkt" nanopass-record-tag nanopass-record?)
+         racket/list
          racket/trace
          racket/splicing)
 
@@ -269,7 +270,7 @@
         (let loop ([pdesc* (pass-desc-pdesc* pass-desc)] [processor* '()])
           (if (null? pdesc*)
               (let ([pdesc* (let ([ls (pass-desc-pdesc* pass-desc)])
-                              (list-head ls (- (length ls) (length processor*))))])
+                              (take ls (- (length ls) (length processor*))))])
                 (if (null? pdesc*)
                     processor*
                     (loop pdesc* processor*)))
@@ -429,7 +430,8 @@
                                   fml* #`(lambda #,fml* #,rhs #,@rhs*)))))
               (let f ([cl* cl*] [pclause* '()])
                 (syntax-case cl* (guard else)
-                  [() (values (reverse pclause*) #f #f)]
+                  [()
+                   (values (reverse pclause*) #f #f)]
                   [([else rhs0 rhs1 ...] . cl*)
                    (stx-null? #'cl*)
                    (values (reverse pclause*)
@@ -440,7 +442,7 @@
                   [([lhs rhs0 rhs1 ...] . cl*)
                    (f #'cl* (cons (helper #'lhs #t #'rhs0 #'(rhs1  ...)) pclause*))]
                   [_ (raise-syntax-error (maybe-syntax->datum (pass-desc-name pass-desc))
-                                         "invalid transformer clause" (pdesc-name pdesc) (car cl*))]))))
+                                         "invalid transformer clause" (pdesc-name pdesc) (stx-car cl*))]))))
           (define make-system-clause
             (lambda (alt)
               (define genmap
@@ -474,7 +476,7 @@
                                                (let ([t (andmap
                                                           (lambda (req)
                                                                   (memf (lambda (x) (bound-identifier=? req x)) fml*))
-                                                          (list-head id* (- (length id*) (length dflt*))))])
+                                                          (take id* (- (length id*) (length dflt*))))])
                                                     #;(printf " -- ~s\n" t)
                                                     t))
                                              (lambda (dflt*)
@@ -484,7 +486,7 @@
                                     (let ([id* (cdr (pdesc-fml* callee-pdesc))]
                                           [dflt* (pdesc-dflt* callee-pdesc)])
                                       (let ([n (- (length id*) (length dflt*))])
-                                        #`(#,@(list-head id* n)
+                                        #`(#,@(take id* n)
                                            #,@(map (lambda (id dflt)
                                                      (if (memf (lambda (x) (bound-identifier=? id x))
                                                                (cdr fml*))
@@ -501,7 +503,7 @@
                                                (andmap
                                                  (lambda (req)
                                                    (memf (lambda (x) (bound-identifier=? req x)) fml*))
-                                                 (list-head id* (- (length id*) (length dflt*)))))
+                                                 (take id* (- (length id*) (length dflt*)))))
                                              (lambda (dflt*)
                                                ; punting when there are return values for now
                                                (null? dflt*)))])
@@ -510,7 +512,7 @@
                                         (let ([id* (cdr (pdesc-fml* callee-pdesc))]
                                               [dflt* (pdesc-dflt* callee-pdesc)])
                                           (let ([n (- (length id*) (length dflt*))])
-                                            #`(#,@(list-head id* n)
+                                            #`(#,@(take id* n)
                                                #,@(map (lambda (id dflt)
                                                          (if (memf (lambda (x) (bound-identifier=? id x))
                                                                    (cdr fml*))
@@ -706,7 +708,7 @@
                                   (process-nano-dots (nano-dots-x elt)
                                                      (if (= n 0)
                                                          t
-                                                         #`(list-head #,t (- (length #,t) #,n)))
+                                                         #`(take #,t (- (length #,t) #,n)))
                                                      itype)]
                                  [(rest-ipred rest-tbinding* rest-ibinding*
                                               rest-obinding* i dots?)
@@ -846,7 +848,7 @@
                        (lambda (pdesc outid*)
                          (and (andmap
                                 (lambda (req) (memf (lambda (x) (bound-identifier=? req x)) fml*))
-                                (list-head xfml* (- (length xfml*) (length (pdesc-dflt* pdesc)))))
+                                (take xfml* (- (length xfml*) (length (pdesc-dflt* pdesc)))))
                               (= (length (pdesc-xval* pdesc))
                                  ; TODO: when we don't have an otype for a processor, we may not have an otype here
                                  ; we should check this out to be sure.
@@ -857,7 +859,7 @@
                                [dflt* (pdesc-dflt* callee-pdesc)])
                            (with-syntax ([(earg* ...)
                                           (let* ([n (- (length id*) (length dflt*))])
-                                            #`(#,@(list-head id* n)
+                                            #`(#,@(take id* n)
                                                #,@(map (lambda (id dflt)
                                                          (if (memf (lambda (x) (bound-identifier=? id x))
                                                                    fml*)
@@ -880,7 +882,7 @@
                                               (andmap
                                                 (lambda (req)
                                                   (memf (lambda (x) (bound-identifier=? req x)) fml*))
-                                                (list-head id* (- (length id*) (length dflt*)))))
+                                                (take id* (- (length id*) (length dflt*)))))
                                             (lambda (dflt*)
                                               (= (length dflt*)
                                                  (let ([len (length outid*)])
