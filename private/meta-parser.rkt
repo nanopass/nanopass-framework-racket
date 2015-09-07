@@ -73,7 +73,7 @@
                                   #`#'#,(alt-pretty alt)
                                   #`#'#,(escape-pattern (alt-pretty alt)))))
                      #,(alt-pretty-procedure? alt)
-                     #'#,(terminal-alt-type alt))
+                     '#,(terminal-alt-type alt))
                    (list (make-nano-unquote #,x)))])))
         (define make-nonterm-unquote
           (lambda (x)

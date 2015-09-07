@@ -113,7 +113,7 @@
     [pair-alt-maker (-> pair-alt? identifier?)]
     [pair-alt-tag (-> pair-alt? exact-nonnegative-integer?)]
 
-    [make-terminal-alt (-> syntax? (or/c false/c syntax?) boolean? (or/c false/c identifier?) terminal-alt?)]
+    [make-terminal-alt (-> syntax? (or/c false/c syntax?) boolean? (or/c false/c identifier? symbol?) terminal-alt?)]
     [terminal-alt? (-> any/c boolean?)]
     [terminal-alt-tspec (-> terminal-alt? (listof tspec?) (or/c false/c tspec?))]
 
