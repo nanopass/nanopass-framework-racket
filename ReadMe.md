@@ -1,12 +1,12 @@
 Nanopass Compiler Library
 ==========================
 
-This repositiory contains a Racket version of the Nanopass Compiler Infrastructure
-described in \[1, 2, 3, 4\], along with the beginnings of a test compiler for the
-library and the rough start to a users guide.  The nanopass framework for Racket
-has been tested on Racket version 6.0, 6.1, and the current development version.
-An R6RS Scheme version also exists which support Chez Scheme, Vicare Scheme, and
-Ikarus Scheme.
+This repositiory contains a Racket version of the Nanopass Compiler
+Infrastructure described in \[1, 2, 3, 4\], along with the beginnings of a test
+compiler for the library and the rough start to a users guide.  The nanopass
+framework for Racket has been tested on Racket version 6.0, 6.1, 6.2, and the
+current development version.  An R6RS Scheme version also exists which support
+Chez Scheme, Vicare Scheme, and Ikarus Scheme.
 
 Files
 ======
