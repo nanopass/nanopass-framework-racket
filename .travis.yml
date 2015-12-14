@@ -46,7 +46,7 @@ before_script:
 # `raco pkg install --deps search-auto nanopass-framework-racket` to install any required
 # packages without it getting stuck on a confirmation prompt.
 script:
- - raco pkg install --deps search-auto cover
+ - raco pkg install --deps search-auto
  - raco test -x -p nanopass-framework-racket
 
 after_success:
