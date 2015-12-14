@@ -1,23 +1,56 @@
-sudo: false
-
 language: c
 
+# Based from: https://github.com/greghendershott/travis-racket
+
+# Optional: Remove to use Travis CI's older infrastructure.
+sudo: false
+
 env:
-- PATH=~/racket/bin:$PATH
+  global:
+    # Supply a global RACKET_DIR environment variable. This is where
+    # Racket will be installed. A good idea is to use ~/racket because
+    # that doesn't require sudo to install and is therefore compatible
+    # with Travis CI's newer container infrastructure.
+    - RACKET_DIR=~/racket
+  matrix:
+    # Supply at least one RACKET_VERSION environment variable. This is
+    # used by the install-racket.sh script (run at before_install,
+    # below) to select the version of Racket to download and install.
+    #
+    # Supply more than one RACKET_VERSION (as in the example below) to
+    # create a Travis-CI build matrix to test against multiple Racket
+    # versions.
+    # - RACKET_VERSION=6.0
+    # - RACKET_VERSION=6.1
+    # - RACKET_VERSION=6.1.1
+    # - RACKET_VERSION=6.2
+    - RACKET_VERSION=6.3
+    - RACKET_VERSION=HEAD
+
+matrix:
+  allow_failures:
+    env: RACKET_VERSION=HEAD
+    fast_finish: true
 
 before_install:
-- "export DISPLAY=:99.0"
-- "sh -e /etc/init.d/xvfb start"
-- curl -L -o installer.sh http://plt.eecs.northwestern.edu/snapshots/current/installers/racket-test-current-x86_64-linux-precise.sh
-- sh installer.sh --in-place --dest ~/racket/
+- git clone https://github.com/greghendershott/travis-racket.git
+- cat travis-racket/install-racket.sh | bash # pipe to bash not sh!
+- export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
 
 install:
-- curl -L -o master.zip https://github.com/akeep/nanopass-framework-racket/archive/master.zip
-- unzip master.zip
-- raco pkg install -n nanopass nanopass-framework-racket-master/
 
+before_script:
+
+# Here supply steps such as raco make, raco test, etc.  Note that you
+# need to supply /usr/racket/bin/ -- it's not in PATH. You can run
+# `raco pkg install --deps search-auto nanopass-framework-racket` to install any required
+# packages without it getting stuck on a confirmation prompt.
 script:
-- racket tests/test-all.rkt
-- echo "done"
+ - raco pkg install --deps search-auto cover
+ - raco test -x -p nanopass-framework-racket
 
-after_script:
+after_success:
+ - raco setup --check-deps nanopass-framework-racket
+ - raco pkg install --deps search-auto cover-coveralls
+ - raco pkg install --deps search-auto
+ - raco cover -b -f coveralls -d $TRAVIS_BUILD_DIR/coverage .
