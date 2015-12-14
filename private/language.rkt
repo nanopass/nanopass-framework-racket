@@ -398,14 +398,15 @@
             (void)))
       (syntax-property stx
                        'mouse-over-tooltips
-                       (vector lang
-                               (- (syntax-position lang) 1)
-                               (+ (syntax-position lang)
-                                  (syntax-span lang))
-                               (format "Language ~a:~n~a"
-                                       (syntax-e lang)
-                                       (pretty-format/write
-                                        (language->s-expression-internal desc)))))))
+                       (and (syntax-position lang)
+                            (vector lang
+                                    (- (syntax-position lang) 1)
+                                    (+ (syntax-position lang)
+                                       (syntax-span lang))
+                                    (format "Language ~a:~n~a"
+                                            (syntax-e lang)
+                                            (pretty-format/write
+                                             (language->s-expression-internal desc))))))))
 
   (syntax-case x ()
     [(_ ?L ?rest ...)
