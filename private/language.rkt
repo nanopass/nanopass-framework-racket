@@ -165,14 +165,14 @@
       (define make-alt
         (lambda (syn pretty pretty-procedure?)
           (syntax-case syn ()
-            [(s s* ...) (make-pair-alt #'(s s* ...) pretty pretty-procedure?)]
-            [(s s* ... . sr) (make-pair-alt #'(s s* ... . sr) pretty pretty-procedure?)]
+            [(s s* ...) (make-pair-alt (syntax/loc syn (s s* ...)) pretty pretty-procedure?)]
+            [(s s* ... . sr) (make-pair-alt (syntax/loc syn (s s* ... . sr)) pretty pretty-procedure?)]
             [s
              (identifier? #'s)
              (if (memq (meta-var->raw-meta-var (syntax->datum #'s)) terminal-meta*)
-                 (make-terminal-alt #'s pretty pretty-procedure? #f)
-                 (make-nonterminal-alt #'s pretty pretty-procedure? #f))]
-            [x (raise-syntax-error 'define-language "unrecognized production syntax" #'x)])))
+                 (make-terminal-alt (syntax/loc syn s) pretty pretty-procedure? #f)
+                 (make-nonterminal-alt (syntax/loc syn s) pretty pretty-procedure? #f))]
+            [x (raise-syntax-error 'define-language "unrecognized production syntax" (syntax/loc syn x))])))
       (let f ([alt* alt*])
         (syntax-parse alt*
           #:datum-literals (=> -> :)
