@@ -236,16 +236,16 @@
 
 ;; used to handle output of meta-parsers
 (define meta-parse-term
-  (lambda (tname stx cata? maybe?)
-    (syntax-case stx ()
+  (lambda (tname stx* cata? maybe?)
+    (syntax-case stx* ()
       [(unquote x)
        (unquote? #'unquote)
        (if (and cata? (not (identifier? #'x)))
-           (parse-cata #'x tname maybe?)
-           (make-nano-unquote #'x))]
+           (parse-cata (syntax/loc stx* x) tname maybe?)
+           (make-nano-unquote (syntax/loc stx* x)))]
       [(a . d)
        (raise-syntax-error 'meta-parse-term
-         "invalid pattern or template" stx)]
+         "invalid pattern or template" stx*)]
       [stx
        ; treat everything else we find as ,'foo because if we don't
        ; `(primapp void) is interpreted as:
@@ -261,7 +261,7 @@
        ; be in the same library, and that is a bummer for other reasons,
        ; so better to be flexible and let something invalid go through
        ; here to be caught later.)
-       (make-nano-quote #''stx)])))
+       (make-nano-quote (syntax/loc stx* 'stx))])))
 
 ;; used in the input meta parser to parse cata syntax
 ;; TODO: support for multiple input terms.
