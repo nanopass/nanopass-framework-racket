@@ -17,8 +17,7 @@
 
 (require (for-template racket))
 
-(define make-meta-parser
-  (lambda (desc)
+(define (make-meta-parser desc)
     (define escape-pattern
       (lambda (x)
         (syntax-case x (...)
@@ -202,7 +201,7 @@
                 ; if we find something here that is not a pair, assume it should
                 ; be treated as a quoted constant, and will be checked appropriately
                 ; by the run-time constructor check
-                [atom (make-nano-quote #''atom)])
+                [atom (make-nano-quote (syntax/loc stx 'atom))])
               #,@(map (make-nonterm-clause #'stx #'maybe?) nonterm-imp-alt*)
               (and error?
                    (raise-syntax-error #f "invalid pattern or template" stx)))))))
@@ -224,14 +223,15 @@
                                                     ntspec lang-name #'cata?))
                             ntspec*)]
                       [name (format-id lang-name "meta-parse-~a" lang-name)])
-          #`(lambda (ntspec-name stx input?)
-              (let ([cata? input?])
-                (define parse-name parse-proc) ...
-                (case ntspec-name
-                  [(ntspec-id) (parse-name stx #t (not input?) #f)] ...
-                  [else (error '#,lang-name
-                               "unrecognized nonterminal passed to meta parser ~s"
-                               ntspec-name)]))))))))
+          (quasisyntax/loc lang-name
+           (lambda (ntspec-name stx input?)
+             (let ([cata? input?])
+               (define parse-name parse-proc) ...
+               (case ntspec-name
+                 [(ntspec-id) (parse-name stx #t (not input?) #f)] ...
+                 [else (error '#,lang-name
+                              "unrecognized nonterminal passed to meta parser ~s"
+                              ntspec-name)]))))))))
 
 
 ;; used to handle output of meta-parsers

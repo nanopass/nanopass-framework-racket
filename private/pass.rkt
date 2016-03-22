@@ -112,7 +112,7 @@
   ; current ir even through cata recursion
   (syntax-parse x
     #:literals (else)
-    [(k (lang type) x:id cl ... [else b0 b1 ...])
+    [(k (lang type) x*:id cl ... [else b0 b1 ...])
      ; if we were in a rhs, pick-up the output quasiquote
      #:with quasiquote (datum->syntax #'k 'quasiquote)
      (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
@@ -120,11 +120,12 @@
        (unless (language? olang)
          (raise-syntax-error 'nanopass-case "unrecognized language" #'lang))
        (syntax-property
-        #'(let ()
-            (define-pass p : (lang type) (x) -> * (val)
-              (proc : type (x) -> * (val) cl ... [else b0 b1 ...])
-              (proc x))
-            (p x))
+        (syntax/loc x
+          (let ()
+            (define-pass p : (lang type) (x*) -> * (val)
+              (proc : type (x*) -> * (val) cl ... [else b0 b1 ...])
+              (proc x*))
+            (p x*)))
         'mouse-over-tooltips
         (vector #'lang
                 (- (syntax-position #'lang) 1)
