@@ -1,5 +1,5 @@
 #lang racket/base
-;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
+;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell, Leif Andersen
 ;;; See the accompanying file Copyright for details
 
 ;;; Producs are : record defs, parser, meta parser, lang 
@@ -160,35 +160,33 @@
                   [x (raise-syntax-error 'define-language
                                          "unrecognzied production extension list" #'x)])))))))
   
-  (define parse-alts
-    (lambda (alt* terminal-meta*)
-      (define make-alt
-        (lambda (syn pretty pretty-procedure?)
-          (syntax-case syn ()
-            [(s s* ...) (make-pair-alt (syntax/loc syn (s s* ...)) pretty pretty-procedure?)]
-            [(s s* ... . sr) (make-pair-alt (syntax/loc syn (s s* ... . sr)) pretty pretty-procedure?)]
-            [s
-             (identifier? #'s)
-             (if (memq (meta-var->raw-meta-var (syntax->datum #'s)) terminal-meta*)
-                 (make-terminal-alt (syntax/loc syn s) pretty pretty-procedure? #f)
-                 (make-nonterminal-alt (syntax/loc syn s) pretty pretty-procedure? #f))]
-            [x (raise-syntax-error 'define-language "unrecognized production syntax" (syntax/loc syn x))])))
-      (let f ([alt* alt*])
-        (syntax-parse alt*
-          #:datum-literals (=> -> :)
-          [() '()]
-          [((=> syn pretty) . alt*)
-           (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
-          [(syn => pretty . alt*)
-           (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
-          [((-> syn prettyf) . alt*)
-           #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
-           (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
-          [(syn -> prettyf . alt*)
-           #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
-           (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
-          [(syn . alt*) (cons (make-alt #'syn #f #f) (f #'alt*))]
-          [x (raise-syntax-error 'define-language "unrecognized production list" #'x)]))))
+  (define (parse-alts alt* terminal-meta*)
+    (define (make-alt syn pretty pretty-procedure?)
+      (syntax-case syn ()
+        [(s s* ...) (make-pair-alt (syntax/loc syn (s s* ...)) pretty pretty-procedure?)]
+        [(s s* ... . sr) (make-pair-alt (syntax/loc syn (s s* ... . sr)) pretty pretty-procedure?)]
+        [s
+         (identifier? #'s)
+         (if (memq (meta-var->raw-meta-var (syntax->datum #'s)) terminal-meta*)
+             (make-terminal-alt (syntax/loc syn s) pretty pretty-procedure? #f)
+             (make-nonterminal-alt (syntax/loc syn s) pretty pretty-procedure? #f))]
+        [x (raise-syntax-error 'define-language "unrecognized production syntax" (syntax/loc syn x))]))
+    (let f ([alt* alt*])
+      (syntax-parse alt*
+        #:datum-literals (=> -> :)
+        [() '()]
+        [((=> syn pretty) . alt*)
+         (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
+        [(syn => pretty . alt*)
+         (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
+        [((-> syn prettyf) . alt*)
+         #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
+         (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
+        [(syn -> prettyf . alt*)
+         #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
+         (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
+        [(syn . alt*) (cons (make-alt #'syn #f #f) (f #'alt*))]
+        [x (raise-syntax-error 'define-language "unrecognized production list" #'x)])))
   
   (define parse-terms
     (lambda (id terms)

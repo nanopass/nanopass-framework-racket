@@ -1,5 +1,5 @@
 #lang racket/base
-;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
+;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell, Leif Andersen
 ;;; See the accompanying file Copyright for details
 
 ;;; TODO:
@@ -65,13 +65,14 @@
        (unless (procedure? meta-parser)
          (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
        (syntax-property
-        #`(splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
-                                                #'id #'type olang
+        (quasisyntax/loc x
+          (splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
+                                                (syntax/loc x id) (syntax/loc x type) olang
                                                 meta-parser)]
                                 [in-context '#,(make-in-context-transformer
                                                 #'id olang
                                                 meta-parser)])
-                               b b* ...)
+            b b* ...))
         'mouse-over-tooltips
         (vector x
                 (- (syntax-position #'lang) 1)
@@ -266,80 +267,77 @@
       (lambda (lhs guard id rhs-arg* rhs-lambda)
         ($make-pclause lhs guard id rhs-arg* rhs-lambda #f '())))
 
-    (define make-processors
-      (lambda (pass-desc maybe-imeta-parser maybe-ometa-parser)
-        (let loop ([pdesc* (pass-desc-pdesc* pass-desc)] [processor* '()])
-          (if (null? pdesc*)
-              (let ([pdesc* (let ([ls (pass-desc-pdesc* pass-desc)])
-                              (take ls (- (length ls) (length processor*))))])
-                (if (null? pdesc*)
-                    processor*
-                    (loop pdesc* processor*)))
-              (loop (cdr pdesc*)
-                (cons (make-processor pass-desc maybe-imeta-parser maybe-ometa-parser (car pdesc*))
-                  processor*))))))
+    (define (make-processors pass-desc maybe-imeta-parser maybe-ometa-parser)
+      (let loop ([pdesc* (pass-desc-pdesc* pass-desc)] [processor* '()])
+        (if (null? pdesc*)
+            (let ([pdesc* (let ([ls (pass-desc-pdesc* pass-desc)])
+                            (take ls (- (length ls) (length processor*))))])
+              (if (null? pdesc*)
+                  processor*
+                  (loop pdesc* processor*)))
+            (loop (cdr pdesc*)
+                  (cons (make-processor pass-desc maybe-imeta-parser maybe-ometa-parser (car pdesc*))
+                        processor*)))))
 
-    (define make-processor
-      (lambda (pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)
-        (define echo-processor
-          (lambda (result)
-            (when (pdesc-echo? pdesc)
-              (printf "~s in pass ~s expanded into:\n"
-                (maybe-syntax->datum (pdesc-name pdesc))
-                (maybe-syntax->datum (pass-desc-name pass-desc)))
-              (pretty-print (maybe-syntax->datum result)))
-            result))
-        (with-syntax ([lambda-expr (make-processor-lambda pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)]
-                      [name (pdesc-name pdesc)])
-          (echo-processor    
-            #`(define name
-                #,(if (pdesc-trace? pdesc)
-                      (let ([maybe-ilang (pass-desc-maybe-ilang pass-desc)]
-                            [maybe-olang (pass-desc-maybe-olang pass-desc)])    
-                        (let ([iunparser (and maybe-ilang (pdesc-maybe-itype pdesc)
-                                              (let ([ilang (language-name maybe-ilang)])
-                                                (format-id ilang "unparse-~a" ilang)))]
-                              [ounparser (and maybe-olang (pdesc-maybe-otype pdesc)
-                                              (let ([olang (language-name maybe-olang)])
-                                                (format-id olang "unparse-~a" olang)))])
-                          (if iunparser
-                              (if ounparser
-                                  (with-syntax ([(fml fml* ...) (generate-temporaries (pdesc-fml* pdesc))]
-                                                [(ot xrt ...) (generate-temporaries (cons 'ot (pdesc-xval* pdesc)))]
-                                                [(tot txrt ...) (generate-temporaries (cons 'tot (pdesc-xval* pdesc)))])
-                                    #`(lambda (fml fml* ...)
-                                        (let ([tproc lambda-expr])
-                                          (let ([ot #f] [xrt #f] ...)
-                                            (trace-let name ([t (#,iunparser fml #t)] [fml* fml*] ...)
-                                              (let-values ([(tot txrt ...) (tproc fml fml* ...)])
-                                                (set! ot tot)
-                                                (set! xrt txrt) ...
-                                                (values (#,ounparser tot #t) txrt ...)))
-                                            (values ot xrt ...)))))
-                                  (with-syntax ([(fml fml* ...) (generate-temporaries (pdesc-fml* pdesc))])
-                                    #`(lambda (fml fml* ...)
-                                        (let ([tproc lambda-expr])
-                                          (trace-let name ([t (#,iunparser fml #t)] [fml* fml*] ...)
-                                            (tproc fml fml* ...))))))
-                              (if ounparser
-                                  (with-syntax ([(fml ...) (generate-temporaries (pdesc-fml* pdesc))]
-                                                [(ot xrt ...) (generate-temporaries (cons 'ot (pdesc-xval* pdesc)))]
-                                                [(tot txrt ...) (generate-temporaries (cons 'tot (pdesc-xval* pdesc)))])
-                                    #`(lambda (fml ...)
-                                        (let ([tproc lambda-expr])
-                                          (let ([ot #f] [xrt #f] ...)
-                                            (trace-let name ([fml fml] ...)
-                                              (let-values ([(tot txrt ...) (tproc fml ...)])
-                                                (set! ot tot)
-                                                (set! xrt txrt) ...
-                                                (values (#,ounparser tot #t) txrt ...)))
-                                            (values ot xrt ...)))))
-                                  (with-syntax ([(fml ...) (generate-temporaries (pdesc-fml* pdesc))])
-                                    #'(lambda (fml ...)
-                                        (let ([tproc lambda-expr])
-                                          (trace-let name ([fml fml] ...)
-                                            (tproc fml ...)))))))))
-                      #'lambda-expr))))))
+    (define (make-processor pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)
+      (define (echo-processor result)
+        (when (pdesc-echo? pdesc)
+          (printf "~s in pass ~s expanded into:\n"
+                  (maybe-syntax->datum (pdesc-name pdesc))
+                  (maybe-syntax->datum (pass-desc-name pass-desc)))
+          (pretty-print (maybe-syntax->datum result)))
+        result)
+      (with-syntax ([lambda-expr (make-processor-lambda pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)]
+                    [name (pdesc-name pdesc)])
+        (echo-processor    
+         #`(define name
+             #,(if (pdesc-trace? pdesc)
+                   (let ([maybe-ilang (pass-desc-maybe-ilang pass-desc)]
+                         [maybe-olang (pass-desc-maybe-olang pass-desc)])    
+                     (let ([iunparser (and maybe-ilang (pdesc-maybe-itype pdesc)
+                                           (let ([ilang (language-name maybe-ilang)])
+                                             (format-id ilang "unparse-~a" ilang)))]
+                           [ounparser (and maybe-olang (pdesc-maybe-otype pdesc)
+                                           (let ([olang (language-name maybe-olang)])
+                                             (format-id olang "unparse-~a" olang)))])
+                       (if iunparser
+                           (if ounparser
+                               (with-syntax ([(fml fml* ...) (generate-temporaries (pdesc-fml* pdesc))]
+                                             [(ot xrt ...) (generate-temporaries (cons 'ot (pdesc-xval* pdesc)))]
+                                             [(tot txrt ...) (generate-temporaries (cons 'tot (pdesc-xval* pdesc)))])
+                                 #`(lambda (fml fml* ...)
+                                     (let ([tproc lambda-expr])
+                                       (let ([ot #f] [xrt #f] ...)
+                                         (trace-let name ([t (#,iunparser fml #t)] [fml* fml*] ...)
+                                                    (let-values ([(tot txrt ...) (tproc fml fml* ...)])
+                                                      (set! ot tot)
+                                                      (set! xrt txrt) ...
+                                                      (values (#,ounparser tot #t) txrt ...)))
+                                         (values ot xrt ...)))))
+                               (with-syntax ([(fml fml* ...) (generate-temporaries (pdesc-fml* pdesc))])
+                                 #`(lambda (fml fml* ...)
+                                     (let ([tproc lambda-expr])
+                                       (trace-let name ([t (#,iunparser fml #t)] [fml* fml*] ...)
+                                                  (tproc fml fml* ...))))))
+                           (if ounparser
+                               (with-syntax ([(fml ...) (generate-temporaries (pdesc-fml* pdesc))]
+                                             [(ot xrt ...) (generate-temporaries (cons 'ot (pdesc-xval* pdesc)))]
+                                             [(tot txrt ...) (generate-temporaries (cons 'tot (pdesc-xval* pdesc)))])
+                                 #`(lambda (fml ...)
+                                     (let ([tproc lambda-expr])
+                                       (let ([ot #f] [xrt #f] ...)
+                                         (trace-let name ([fml fml] ...)
+                                                    (let-values ([(tot txrt ...) (tproc fml ...)])
+                                                      (set! ot tot)
+                                                      (set! xrt txrt) ...
+                                                      (values (#,ounparser tot #t) txrt ...)))
+                                         (values ot xrt ...)))))
+                               (with-syntax ([(fml ...) (generate-temporaries (pdesc-fml* pdesc))])
+                                 #'(lambda (fml ...)
+                                     (let ([tproc lambda-expr])
+                                       (trace-let name ([fml fml] ...)
+                                                  (tproc fml ...)))))))))
+                   #'lambda-expr)))))
 
     (define make-processor-lambda
       (lambda (pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)

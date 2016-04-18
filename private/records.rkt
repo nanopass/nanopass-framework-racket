@@ -1,5 +1,5 @@
 #lang racket/base
-;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell
+;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell, Leif Andersen
 ;;; See the accompanying file Copyright for details
 
 (require racket/contract/base)
