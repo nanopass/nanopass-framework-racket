@@ -578,10 +578,18 @@
            (lambda (ntspec) (values (ntspec-all-pred ntspec) (ntspec-name ntspec)))]
           [(terminal-meta->tspec fld tspecs) =>
            (lambda (tspec) (values (tspec-pred tspec) (tspec-type tspec)))]
-          [else (raise-syntax-error 'define-language
-                                    (format "unrecognized meta-variable in language ~s"
-                                            (maybe-syntax->datum (language-name lang)))
-                                    fld)])
+          [else
+           ;; XXX hack because `...` should not happen twice at the same level
+           ;;     in a pattern. Should really be handled at the meta-parser level
+           (if (equal? (syntax->datum fld) '...)
+               (raise-syntax-error 'define-language
+                                   (format "misplaced ellipsis in language ~a (follows other ellipsis)"
+                                           (maybe-syntax->datum (language-name lang)))
+                                   fld)
+               (raise-syntax-error 'define-language
+                                   (format "unrecognized meta-variable in language ~s"
+                                           (maybe-syntax->datum (language-name lang)))
+                                   fld))])
         (lambda (pred? name)
           (with-syntax ([pred? (if maybe?
                                    #`(lambda (x) (or (eq? x #f) (#,pred? x)))

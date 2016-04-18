@@ -277,16 +277,15 @@
                                                          (parse-alts (cddr ntspec) terminal-meta*)))
                                           ntspecs))))))))
   
-  (define escape-pattern
-    (lambda (x)
-      (syntax-case x (...)
-        [... #'(... (... ...))]
-        [(a . d) (with-syntax ([a (escape-pattern #'a)]
-                               [d (escape-pattern #'d)])
-                   #'(a . d))]
-        [() #'()]
-        [id  (identifier? #'id) #'id])))
-  
+  (define (escape-pattern x)
+    (syntax-case x (...)
+      [... #'(... (... ...))]
+      [(a . d) (with-syntax ([a (escape-pattern #'a)]
+                             [d (escape-pattern #'d)])
+                 #'(a . d))]
+      [() #'()]
+      [id  (identifier? #'id) #'id]))
+
   (define (finish ntname lang* id desc) ; constructs the output
     (define lang (syntax-property lang* 'original-for-check-syntax #t))
     (annotate-language! desc id)
