@@ -361,10 +361,12 @@
   (syntax-parse x
     [(_ stuff)
      (with-handlers ([exn:fail?
-                      (lambda (x) (raise-syntax-error (let ([pn (syntax->datum pass-name)])
-                                                        (if (symbol? pn) pn #f))
-                                                      "unrecognized nonterminal"
-                                                      ntname))])
+                      (lambda (x) (raise-syntax-error
+                                   #f
+                                   (format "unrecognized nonterminal in language ~a"
+                                           (syntax->datum (language-name omrec)))
+                                   pass-name
+                                   ntname))])
        (output-records->syntax pass-name ntname omrec ometa-parser
                                (ometa-parser (syntax->datum ntname) (syntax/loc x stuff) #f)))
      #;(let ([stx #f])

@@ -314,24 +314,24 @@
   #:prefab)
   
 ;; record helpers 
-(define find-spec
-  (lambda (m lang)
-    (let ([name (meta-var->raw-meta-var (maybe-syntax->datum m))])
-      (or (findf (lambda (ntspec)
-                   (memq name (map maybe-syntax->datum (ntspec-meta-vars ntspec))))
-            (language-ntspecs lang))
-          (findf (lambda (tspec)
-                   (memq name (map maybe-syntax->datum (tspec-meta-vars tspec))))
-            (language-tspecs lang))
-          (raise-syntax-error #f "meta not found" (language-name lang) m)))))
+(define (find-spec m lang)
+  (let ([name (meta-var->raw-meta-var (maybe-syntax->datum m))])
+    (or (findf (lambda (ntspec)
+                 (memq name (map maybe-syntax->datum (ntspec-meta-vars ntspec))))
+               (language-ntspecs lang))
+        (findf (lambda (tspec)
+                 (memq name (map maybe-syntax->datum (tspec-meta-vars tspec))))
+               (language-tspecs lang))
+        (raise-syntax-error #f (format "not a metavariable in language ~a"
+                                       (syntax->datum (language-name lang)))
+                            m))))
 
-(define nonterminal-meta?
-  (lambda (m ntspec*)
-    (let ([m (meta-var->raw-meta-var (maybe-syntax->datum m))])
-      (and (ormap (lambda (x) (memq m (map maybe-syntax->datum (ntspec-meta-vars x))))
-             ntspec*)
-           #t))))
-  
+(define (nonterminal-meta? m ntspec*)
+  (let ([m (meta-var->raw-meta-var (maybe-syntax->datum m))])
+    (and (ormap (lambda (x) (memq m (map maybe-syntax->datum (ntspec-meta-vars x))))
+                ntspec*)
+         #t)))
+ 
 (define nonterminal-meta->ntspec
   (lambda (meta ntspecs)
     (let ([meta (meta-var->raw-meta-var (maybe-syntax->datum meta))])
