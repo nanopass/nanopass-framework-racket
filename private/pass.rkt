@@ -123,10 +123,12 @@
        (syntax-property
         (syntax/loc x
           (let ()
-            (define-pass p : (lang type) (x*) -> * (val)
+            ; nanopass-case used as pass name for error messages
+            ; in case of incorrect syntax
+            (define-pass nanopass-case : (lang type) (x*) -> * (val)
               (proc : type (x*) -> * (val) cl ... [else b0 b1 ...])
               (proc x*))
-            (p x*)))
+            (nanopass-case x*)))
         'mouse-over-tooltips
         (vector #'lang
                 (- (syntax-position #'lang) 1)
