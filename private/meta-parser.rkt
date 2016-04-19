@@ -360,7 +360,9 @@
 (define ((make-quasiquote-transformer pass-name ntname omrec ometa-parser) x)
   (syntax-parse x
     [(_ stuff)
-     (with-handlers ([exn:fail?
+     (with-handlers ([exn:fail:syntax?
+                      (lambda (x) (raise x))]
+                     [exn:fail?
                       (lambda (x) (raise-syntax-error
                                    #f
                                    (format "unrecognized nonterminal in language ~a"
