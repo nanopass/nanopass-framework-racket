@@ -1424,7 +1424,7 @@
                                (xvals-ok? (pdesc-xval* pdesc)))
                           (if candidate
                               (begin
-                                (printf "found ~s and ~s\n" candidate pdesc)
+                                #;(printf "found ~s and ~s\n" candidate pdesc)
                                 (raise-syntax-error who
                                                     (format "ambiguous target for implicit transformer call from ~s to ~s\
                                                              try adding default arguments, explicitly stating cata-morphisms\
