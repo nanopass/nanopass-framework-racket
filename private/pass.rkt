@@ -1605,12 +1605,12 @@
             (echo-pass
               (with-syntax ([who (datum->syntax pass-name 'who)])
                 (syntax-property
-                 #`(define #,pass-name
-                     (lambda #,fml*
-                       (define who '#,pass-name)
-                       #,@defn*
-                       #,@(make-processors pass-desc maybe-imeta-parser maybe-ometa-parser)
-                       #,body))
+                 (quasisyntax/loc x
+                   (define (#,pass-name . #,fml*)
+                     (define who '#,pass-name)
+                     #,@defn*
+                     #,@(make-processors pass-desc maybe-imeta-parser maybe-ometa-parser)
+                     #,body))
                  'mouse-over-tooltips
                  (cons
                   (and maybe-iname maybe-ilang
