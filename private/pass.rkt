@@ -428,7 +428,9 @@
                     (check-unique-identifiers who "pattern binds one or more identifiers more then once" lhs fml*)
                     (make-pclause nrec guard
                                   (datum->syntax #'* (gensym "rhs"))
-                                  fml* #`(lambda #,fml* #,rhs #,@rhs*)))))
+                                  fml*
+                                  (quasisyntax/loc x
+                                    (lambda #,fml* #,rhs #,@rhs*))))))
               (let f ([cl* cl*] [pclause* '()])
                 (syntax-case cl* (guard else)
                   [()
