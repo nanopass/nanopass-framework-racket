@@ -1365,90 +1365,90 @@
                   #'((lambda (t t* ...) (and t (pname t t* ...))) arg* ...))
                 #'(pname arg* ...)))]))
 
-    (define find-proc
+    (define (find-proc msg pass-desc src-stx itype maybe-olang maybe-otype try-to-generate? xfmls-ok? xvals-ok?)
       ; will never be asked to find a proc without an itype, so itype is never #f
-      (lambda (msg pass-desc src-stx itype maybe-olang maybe-otype try-to-generate? xfmls-ok? xvals-ok?)
-        (define (try-to-generate)
-          (unless (and (xfmls-ok? '() '()) (xvals-ok? '()))
-            (raise-syntax-error who
-              (format "cannot find a transformer that accepts input type ~s and output type ~s, \
-                and cannot generate one with extra formals or return values"
-                itype maybe-otype)
-              (pass-desc-name pass-desc) src-stx))
-          (unless (and (nonterm-id->ntspec? itype (language-ntspecs (pass-desc-maybe-ilang pass-desc)))
-                       (nonterm-id->ntspec? maybe-otype (language-ntspecs (pass-desc-maybe-olang pass-desc))))
-            (raise-syntax-error who
-              (format "cannot find a transformer that accepts input type ~s and output type ~s, \
-                and cannot generate one when either the input or output type is a terminal"
-                itype maybe-otype)
-              (pass-desc-name pass-desc) src-stx))
-          #;(printf "Making Pdesc: ~a -- ~a\n" (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype)) msg)
-          (let ([pdesc (make-pdesc (datum->syntax #'* (gensym (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype))))
-                         itype (list #'ir) '() maybe-otype '() '() #f #f)])
-            (set-pass-desc-pdesc*! pass-desc
-              (cons pdesc (pass-desc-pdesc* pass-desc)))
-            pdesc))
-        (define find-subspecs
-          (lambda (ospec sub-ospec*)
-            (if (ntspec? ospec)
-                (let f ([alt* (ntspec-alts ospec)] [sub-ospec* sub-ospec*])
-                  (if (null? alt*)
-                      sub-ospec*
-                      (let ([alt (car alt*)])
-                        (cond
-                          [(nonterminal-alt? alt)
-                            (f (cdr alt*) (cons (nonterminal-alt-ntspec alt (language-ntspecs maybe-olang)) sub-ospec*))]
-                          [(terminal-alt? alt)
-                            (f (cdr alt*) (cons (terminal-alt-tspec alt (language-tspecs maybe-olang)) sub-ospec*))]
-                          [else (f (cdr alt*) sub-ospec*)]))))
-                sub-ospec*)))
-        (define find-candidate
-          (lambda (maybe-otype)
-            (let loop ([pdesc* (pass-desc-pdesc* pass-desc)] [candidate #f])
-              (if (null? pdesc*)
-                  candidate
-                  (loop (cdr pdesc*)
+      (define (try-to-generate)
+        (unless (and (xfmls-ok? '() '()) (xvals-ok? '()))
+          (raise-syntax-error who
+                              (format "cannot find a transformer that accepts input type ~s and output type ~s, \
+                                and cannot generate one with extra formals or return values"
+                                      itype maybe-otype)
+                              (pass-desc-name pass-desc) src-stx))
+        (unless (and (nonterm-id->ntspec? itype (language-ntspecs (pass-desc-maybe-ilang pass-desc)))
+                     (nonterm-id->ntspec? maybe-otype (language-ntspecs (pass-desc-maybe-olang pass-desc))))
+          (raise-syntax-error who
+                              (format "cannot find a transformer that accepts input type ~s and output type ~s, \
+                                and cannot generate one when either the input or output type is a terminal"
+                                      itype maybe-otype)
+                              (pass-desc-name pass-desc) src-stx))
+        #;(printf "Making Pdesc: ~a -- ~a\n" (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype)) msg)
+        (let ([pdesc (make-pdesc (datum->syntax #'* (gensym (format "~s->~s" (maybe-syntax->datum itype) (maybe-syntax->datum maybe-otype))))
+                                 itype (list #'ir) '() maybe-otype '() '() #f #f)])
+          (set-pass-desc-pdesc*! pass-desc
+                                 (cons pdesc (pass-desc-pdesc* pass-desc)))
+          pdesc))
+      (define find-subspecs
+        (lambda (ospec sub-ospec*)
+          (if (ntspec? ospec)
+              (let f ([alt* (ntspec-alts ospec)] [sub-ospec* sub-ospec*])
+                (if (null? alt*)
+                    sub-ospec*
+                    (let ([alt (car alt*)])
+                      (cond
+                        [(nonterminal-alt? alt)
+                         (f (cdr alt*) (cons (nonterminal-alt-ntspec alt (language-ntspecs maybe-olang)) sub-ospec*))]
+                        [(terminal-alt? alt)
+                         (f (cdr alt*) (cons (terminal-alt-tspec alt (language-tspecs maybe-olang)) sub-ospec*))]
+                        [else (f (cdr alt*) sub-ospec*)]))))
+              sub-ospec*)))
+      (define (find-candidate maybe-otype)
+        (let loop ([pdesc* (pass-desc-pdesc* pass-desc)] [candidate #f])
+          (if (null? pdesc*)
+              candidate
+              (loop (cdr pdesc*)
                     (let ([pdesc (car pdesc*)])
                       #;(printf "finding-candidate:\n  itype: ~s - ~s\n  maybe-otype: ~s - ~s\n  xfmls bits: ~s - ~s\n  xvals bits: ~s\n  and: ~s\n"
-                        (pdesc-maybe-itype pdesc) itype
-                        (pdesc-maybe-otype pdesc) maybe-otype
-                        (cdr (pdesc-fml* pdesc)) (pdesc-dflt* pdesc)
-                        (pdesc-xval* pdesc)
-                        (list (eq? (maybe-syntax->datum (pdesc-maybe-itype pdesc)) (maybe-syntax->datum itype)) ; HERE
-                              (eq? (maybe-syntax->datum (pdesc-maybe-otype pdesc)) (maybe-syntax->datum maybe-otype)) ; HERE
-                              (xfmls-ok? (cdr (pdesc-fml* pdesc)) (pdesc-dflt* pdesc))
-                              (xvals-ok? (pdesc-xval* pdesc))))
+                                (pdesc-maybe-itype pdesc) itype
+                                (pdesc-maybe-otype pdesc) maybe-otype
+                                (cdr (pdesc-fml* pdesc)) (pdesc-dflt* pdesc)
+                                (pdesc-xval* pdesc)
+                                (list (eq? (maybe-syntax->datum (pdesc-maybe-itype pdesc)) (maybe-syntax->datum itype)) ; HERE
+                                      (eq? (maybe-syntax->datum (pdesc-maybe-otype pdesc)) (maybe-syntax->datum maybe-otype)) ; HERE
+                                      (xfmls-ok? (cdr (pdesc-fml* pdesc)) (pdesc-dflt* pdesc))
+                                      (xvals-ok? (pdesc-xval* pdesc))))
                       (if (and (eq? (maybe-syntax->datum (pdesc-maybe-itype pdesc)) (maybe-syntax->datum itype)) ; HERE
                                (eq? (maybe-syntax->datum (pdesc-maybe-otype pdesc)) (maybe-syntax->datum maybe-otype)) ; HERE
                                (xfmls-ok? (cdr (pdesc-fml* pdesc)) (pdesc-dflt* pdesc))
                                (xvals-ok? (pdesc-xval* pdesc)))
                           (if candidate
                               (begin
-                                #;(printf "found ~s and ~s\n" candidate pdesc)
+                                (printf "found ~s and ~s\n" candidate pdesc)
                                 (raise-syntax-error who
-                                  (format "ambiguous target for implicit transformer call from ~s to ~s"
-                                    itype maybe-otype)
-                                  (pass-desc-name pass-desc) src-stx))
+                                                    (format "ambiguous target for implicit transformer call from ~s to ~s\
+                                                             try adding default arguments, explicitly stating cata-morphisms\
+                                                             or filing out all casses in the processor."
+                                                            itype maybe-otype)
+                                                    (pass-desc-name pass-desc) src-stx))
                               pdesc)
-                          candidate)))))))
-        ; doing a breadth-first search of maybe-otype and its subtypes
-        ; could go up to parent itype(s) on itype as well
-        #;(printf "starting search (~a)...\n" msg)
-        (if maybe-otype
-            (let ospec-loop ([ospec* (list (id->spec maybe-otype (pass-desc-maybe-olang pass-desc)))]
-                             [sub-ospec* '()])
-              #;(printf "length opsec*: ~s, sub-ospec*: ~s\n" (length ospec*) (length sub-ospec*))
-              (if (null? ospec*)
-                  (if (null? sub-ospec*)
-                      (and try-to-generate? (try-to-generate))
-                      (ospec-loop sub-ospec* '()))
-                  (or (find-candidate (spec-type (car ospec*)))
-                      (ospec-loop (cdr ospec*) (find-subspecs (car ospec*) sub-ospec*)))))
-            (or (find-candidate #f)
-                (raise-syntax-error who
-                  (format "cannot find a transformer that accepts input type ~s and no output type" itype)
-                  (pass-desc-name pass-desc) src-stx)))))
-
+                          candidate))))))
+      ; doing a breadth-first search of maybe-otype and its subtypes
+      ; could go up to parent itype(s) on itype as well
+      #;(printf "starting search (~a)...\n" msg)
+      (if maybe-otype
+          (let ospec-loop ([ospec* (list (id->spec maybe-otype (pass-desc-maybe-olang pass-desc)))]
+                           [sub-ospec* '()])
+            #;(printf "length opsec*: ~s, sub-ospec*: ~s\n" (length ospec*) (length sub-ospec*))
+            (if (null? ospec*)
+                (if (null? sub-ospec*)
+                    (and try-to-generate? (try-to-generate))
+                    (ospec-loop sub-ospec* '()))
+                (or (find-candidate (spec-type (car ospec*)))
+                    (ospec-loop (cdr ospec*) (find-subspecs (car ospec*) sub-ospec*)))))
+          (or (find-candidate #f)
+              (raise-syntax-error who
+                                  (format "cannot find a transformer that accepts input type ~s and no output type" itype)
+                                  (pass-desc-name pass-desc) src-stx))))
+    
     (define ((parse-proc pass-name ilang olang) x)
       (let loop ([x x] [trace? #f] [echo? #f])
         (syntax-parse x
