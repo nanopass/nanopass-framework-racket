@@ -1333,9 +1333,11 @@
                                 #,@system-case-clause*
                                 [else #,(if else-id
                                             #`(#,else-id) 
-                                            #`(error '#,(pass-desc-name pass-desc)
-                                                #,(format "unexpected ~s from ~~s" (maybe-syntax->datum itype))
-                                                #,fml))]))]))))))))))
+                                            (quasisyntax/loc x
+                                              (error '#,(pass-desc-name pass-desc)
+                                                #,(format "found ~~s given to processor, expected ~a pattern"
+                                                          (maybe-syntax->datum itype))
+                                                #,fml)))]))]))))))))))
 
     ; build-call and find-proc need to work in concert, so they are located near eachother
     ; to increase the chance that we actually remember to alter both of them when the

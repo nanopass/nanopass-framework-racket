@@ -612,23 +612,24 @@
     (with-syntax ([(fld ...) (pair-alt-field-names alt)])
       (with-syntax ([(msg ...) (generate-temporaries #'(fld ...))]
                     [$maker (format-id (pair-alt-name alt) "$~a" (pair-alt-maker alt))])
-        #`(begin
+        (quasisyntax/loc (language-name lang)
+          (begin
             (define-struct (#,(pair-alt-name alt) #,(ntspec-struct-name ntspec))
               (fld ...)
               #:transparent
               #:methods gen:custom-write
               [(define write-proc #,lang-unparser-id)]
               #:constructor-name $maker)
-            (define #,(pair-alt-maker alt)
-              (lambda (who fld ... msg ...)
-                #,@(if (= (optimize-level) 3)
-                       '()
-                       (map build-field-check
-                            (syntax->list #'(fld ...))
-                            (syntax->list #'(msg ...))
-                            (pair-alt-field-levels alt)
-                            (pair-alt-field-maybes alt)))
-                ($maker #,(pair-alt-tag alt) fld ...)))))))
+            #,(quasisyntax/loc (language-name lang)
+                (define (#,(pair-alt-maker alt) who fld ... msg ...)
+                  #,@(if (= (optimize-level) 3)
+                         '()
+                         (map build-field-check
+                              (syntax->list #'(fld ...))
+                              (syntax->list #'(msg ...))
+                              (pair-alt-field-levels alt)
+                              (pair-alt-field-maybes alt)))
+                  ($maker #,(pair-alt-tag alt) fld ...))))))))
   (define (ntspec->lang-record ntspec)
     #`(define-struct (#,(ntspec-struct-name ntspec) #,lang-rec-id) () #:transparent ;#:prefab
         #:methods gen:custom-write

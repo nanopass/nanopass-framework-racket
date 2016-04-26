@@ -18,7 +18,8 @@
 (provide define-language language->s-expression diff-languages prune-language
          define-pruned-language)
 
-(require  "helpers.rkt"
+(require  racket/struct
+          "helpers.rkt"
           "unparser.rkt"
           (for-syntax racket/syntax
                       racket/base
@@ -298,14 +299,12 @@
                   [(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
       (define stx
         #`(begin
-            (define (unparser-out-name lang port mode)
-              (define-unparser unparser-name #,lang)
-              (define unparsed (format "#(language:~a ~a)"
-                                       '#,lang
-                                       (unparser-name lang)))
-              (cond [(eq? mode #f) (display unparsed port)]
-                    [(eq? mode #t) (display unparsed port)]
-                    [else          (display unparsed port)]))
+            (define unparser-out-name
+              (let ()
+                (define-unparser unparser-name #,lang)
+                (make-constructor-style-printer
+                 (lambda (x) (format "language:~a" '#,lang))
+                 (lambda (lang) (list (unparser-name lang))))))
             records ...
             predicates ...
             (define-syntax #,lang
