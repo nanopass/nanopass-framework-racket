@@ -590,11 +590,12 @@
                           ; TODO: if there were no user provided clauses for this input alt,
                           ; we could raise a compile time error here, otherwise we have to rely
                           ; on the runtime error
-                          #`(error '#,(pass-desc-name pass-desc)
+                          (quasisyntax/loc x
+                            (error '#,(pass-desc-name pass-desc)
                                    "no matching clause for input ~s in processor ~s from ~s"
                                    '#,alt-syntax
                                    '#,(pdesc-name pdesc)
-                                   #,fml))))])))
+                                   #,fml)))))])))
 
           (define gen-binding (lambda (t v) (if (eq? t v) '() (list #`(#,t #,v)))))
           (define gen-t (lambda (acc) (if (identifier? acc) acc (generate-temporary))))
