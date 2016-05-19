@@ -1328,7 +1328,7 @@
                           #,@user-rec-clause*
                           #,@system-rec-clause*
                           [else 
-                            (let ([tag (nanopass-record-tag #,fml)])
+                            (let ([tag #,(quasisyntax/loc x (nanopass-record-tag #,fml))])
                               (cond
                                 #,@user-case-clause*
                                 #,@system-case-clause*
