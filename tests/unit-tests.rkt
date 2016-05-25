@@ -1,5 +1,5 @@
 #lang racket
-;;; Copyright (c) 2000-2013 Andrew W. Keep, R. Kent Dybvig
+;;; Copyright (c) 2000-2013 Andrew W. Keep, R. Kent Dybvig, Leif Andersen
 ;;; See the accompanying file Copyright for details
 
 (provide unit-tests
@@ -8,7 +8,8 @@
          maybe-dots-tests
          language-dot-support
          maybe-unparse-tests
-         error-messages)
+         error-messages
+         empty-lists)
 
 (require rackunit
          "../private/helpers.rkt"
@@ -1105,3 +1106,40 @@
                         [,s s])
                       (Expr ir))))))
       )))
+
+(define-language Lemptylists
+  (terminals
+   (symbol (s)))
+  (Expr (e)
+        s
+        (e ...)))
+
+(define-language Lemptylists2
+  (terminals
+   (symbol (s)))
+   (Expr (e)
+         s
+         (e* ... . e)))
+
+(define empty-lists
+  (test-suite "empty-lists"
+    (test-case "empty-lists"
+      (check-equal?
+       (Lemptylists?
+        (with-output-language (Lemptylists Expr)
+          `,'a))
+       (Lemptylists?
+        (with-output-language (Lemptylists Expr)
+          `a)))
+      (check-equal?
+       (with-output-language (Lemptylists Expr)
+         `())
+       (with-output-language (Lemptylists Expr)
+         `(,'() ...)))
+      (check-equal?
+       (Lemptylists2?
+        (with-output-language (Lemptylists2 Expr)
+          `c))
+       (Lemptylists2?
+        (with-output-language (Lemptylists2 Expr)
+          `(,'() ... . c)))))))

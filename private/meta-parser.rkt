@@ -88,60 +88,76 @@
                #,(alt-pretty-procedure? alt)
                #'#,(nonterminal-alt-name alt))
               (list (make-nano-unquote #,x)))])))
-    (define make-nonterm-clause
-      (lambda (x maybe?)
-        (lambda (alt)
-          (let ([spec (meta-name->ntspec (alt-syn alt) ntspecs)])
-            (unless spec
-              (raise-syntax-error 'meta-parser "unrecognized meta variable"
-                                  (language-name desc) (alt-syn alt)))
-            (with-syntax ([proc-name (hash-ref ntspec-meta-parsers spec)])
-              #`(proc-name #,x #f nested? #,maybe?))))))
-    (define make-pair-clause
-      (lambda (stx first-stx rest-stx)
-        (lambda (alt)
-          (let ([field-pats (pair-alt-pattern alt)])
-            (with-syntax ([(field-var ...) (pair-alt-field-names alt)])
-              (with-syntax ([(parsed-field ...)
-                             (map parse-field
-                                  (syntax->list #'(field-var ...))
-                                  (pair-alt-field-levels alt)
-                                  (pair-alt-field-maybes alt))])
-                #`(#,(if (pair-alt-implicit? alt)
-                         #`(meta-syntax-dispatch
-                            #,stx '#,(datum->syntax #'lang-name field-pats))
-                         #`(and (eq? (syntax->datum #,first-stx)
+    (define ((make-nonterm-clause x maybe?) alt)
+      (let ([spec (meta-name->ntspec (alt-syn alt) ntspecs)])
+        (unless spec
+          (raise-syntax-error 'meta-parser "unrecognized meta variable"
+                              (language-name desc) (alt-syn alt)))
+        (with-syntax ([proc-name (hash-ref ntspec-meta-parsers spec)])
+          #`(proc-name #,x #f nested? #,maybe?))))
+    
+    (define ((make-pair-clause stx first-stx rest-stx) alt)
+      (make-list-clause stx #f first-stx rest-stx alt))
+    (define ((make-null-clause stx) alt)
+      (make-list-clause stx #t #f #f alt))
+
+    ; Produce a case statement for matching on a list.
+    ;  empty-pair is #t if we are matching on a pair, #f if null.
+    ;  Primarily for use in make-pair-clause and make-null-clause
+    ; Syntax Boolean (Maybe Syntax) (Maybe Syntax) Syntax -> Syntax
+    (define (make-list-clause stx empty-pair? first-stx rest-stx alt)
+      (let ([field-pats (pair-alt-pattern alt)])
+        (with-syntax ([(field-var ...) (pair-alt-field-names alt)])
+          (with-syntax ([(parsed-field ...)
+                         (map parse-field
+                              (syntax->list #'(field-var ...))
+                              (pair-alt-field-levels alt)
+                              (pair-alt-field-maybes alt))])
+            #`(#,(cond
+                   [(pair-alt-implicit? alt)
+                    #`(meta-syntax-dispatch #,stx '#,(datum->syntax #'lang-name field-pats))]
+                   [empty-pair? #f]
+                   [else #`(and (eq? (syntax->datum #,first-stx)
                                      '#,(stx-car (alt-syn alt)))
                                 (meta-syntax-dispatch #,rest-stx
-                                                      '#,(datum->syntax #'lang-name field-pats))))
-                   => (lambda (ls)
-                        (apply
-                         (lambda (field-var ...)
-                           (make-nano-meta
-                            ($make-pair-alt
-                             #'#,(escape-pattern (alt-syn alt))
-                             #,(let ([t (alt-pretty alt)])
-                                 (and t 
-                                      (if (alt-pretty-procedure? alt)
-                                          #`#'#,(alt-pretty alt)
-                                          #`#'#,(escape-pattern (alt-pretty alt)))))
-                             #,(alt-pretty-procedure? alt)
-                             '#,(pair-alt-pattern alt)
-                             #,(let ([t (pair-alt-field-names alt)])
-                                 (and t
-                                      #`(list #,@(map (lambda (id) #`#'#,id) t))))
-                             '#,(pair-alt-field-levels alt)
-                             '#,(pair-alt-field-maybes alt)
-                             #,(pair-alt-implicit? alt)
-                             #,(pair-alt-tag alt)
-                             #'#,(pair-alt-pred alt)
-                             #'#,(pair-alt-maker alt)
-                             #,(let ([t (pair-alt-accessors alt)])
-                                 (and t
-                                      #`(list #,@(map (lambda (id) #`#'#,id) t))))
-                             #'#,(pair-alt-name alt))
-                            (list parsed-field ...)))
-                         ls)))))))))
+                                                      '#,(datum->syntax #'lang-name field-pats)))])
+               => (lambda (ls)
+                    (cond
+                      [(and (= (length ls) 2)
+                            (null? (car ls))
+                            (syntax? (cadr ls))
+                            (syntax-parse (cadr ls)
+                              [() #t]
+                              [_ #f]))
+                       (make-nano-quote (syntax/loc stx '()))]
+                      [else
+                       (apply
+                        (lambda (field-var ...)
+                          (make-nano-meta
+                           ($make-pair-alt
+                            #'#,(escape-pattern (alt-syn alt))
+                            #,(let ([t (alt-pretty alt)])
+                                (and t 
+                                     (if (alt-pretty-procedure? alt)
+                                         #`#'#,(alt-pretty alt)
+                                         #`#'#,(escape-pattern (alt-pretty alt)))))
+                            #,(alt-pretty-procedure? alt)
+                            '#,(pair-alt-pattern alt)
+                            #,(let ([t (pair-alt-field-names alt)])
+                                (and t
+                                     #`(list #,@(map (lambda (id) #`#'#,id) t))))
+                            '#,(pair-alt-field-levels alt)
+                            '#,(pair-alt-field-maybes alt)
+                            #,(pair-alt-implicit? alt)
+                            #,(pair-alt-tag alt)
+                            #'#,(pair-alt-pred alt)
+                            #'#,(pair-alt-maker alt)
+                            #,(let ([t (pair-alt-accessors alt)])
+                                (and t
+                                     #`(list #,@(map (lambda (id) #`#'#,id) t))))
+                            #'#,(pair-alt-name alt))
+                           (list parsed-field ...)))
+                       ls)])))))))
     (define (separate-syn ls)
       (let f ([ls ls])
         (cond
@@ -159,52 +175,54 @@
                    (if (pair-alt-implicit? v)
                        (values pair* `(,v . ,pair-imp*) term* imp* nonimp*)
                        (values `(,v . ,pair*) pair-imp* term* imp* nonimp*))))])))
-    (let-values ([(pair-alt* pair-imp-alt* term-alt* nonterm-imp-alt* nonterm-nonimp-alt*)
-                  (separate-syn (ntspec-alts ntspec))])
-      #;(pretty-print (list 'inf (syntax->datum pair-alt*)
-                            (syntax->datum pair-imp-alt*)
-                            (syntax->datum term-alt*)
-                            (syntax->datum nonterm-imp-alt*)
-                            (syntax->datum nonterm-nonimp-alt*)))
-      #`(lambda (stx error? nested? maybe?)
-          (or (syntax-case stx ()
-                [(unquote id)
-                 (and (unquote? #'unquote) (identifier? #'id))
-                 (if nested?
-                     (make-nano-unquote #'id)
-                     (cond
-                       #,@(map (make-term-clause #'#'id) term-alt*)
-                       ; TODO: right now we can match the meta for this item, but we
-                       ; cannot generate the needed nano-meta because we have no
-                       ; alt record to put into it.  (perhaps the current model is
-                       ; just pushed as far as it can be right now, and we need to
-                       ; rework it.)
-                       #,@(map (make-nonterm-unquote #'#'id) nonterm-imp-alt*)
-                       #,@(map (make-nonterm-unquote #'#'id) nonterm-nonimp-alt*)
-                       [else #f]))]
-                [(unquote x)
-                 (unquote? #'unquote)
-                 (if nested?
-                     (if #,cata?
-                         (parse-cata #'x '#,(ntspec-name ntspec) maybe?)
-                         (make-nano-unquote #'x))
-                     (raise-syntax-error #f "cata unsupported at top-level of pattern" stx))]
-                [_ #f])
-              #,@(map (make-nonterm-clause #'stx #'maybe?) nonterm-nonimp-alt*)
-              (syntax-case stx ()
-                [(a . d)
-                 (cond
-                   #,@(map (make-pair-clause #'stx #'#'a #'#'d) pair-alt*)
-                   #,@(map (make-pair-clause #'stx #'#'a #'#'d) pair-imp-alt*)
-                   [else #f])]
-                ; if we find something here that is not a pair, assume it should
-                ; be treated as a quoted constant, and will be checked appropriately
-                ; by the run-time constructor check
-                [atom (make-nano-quote (syntax/loc stx 'atom))])
-              #,@(map (make-nonterm-clause #'stx #'maybe?) nonterm-imp-alt*)
-              (and error?
-                   (raise-syntax-error #f "invalid pattern or template" stx))))))
-  
+    (define-values (pair-alt* pair-imp-alt* term-alt* nonterm-imp-alt* nonterm-nonimp-alt*)
+      (separate-syn (ntspec-alts ntspec)))
+    #;(pretty-print
+     (list 'inf pair-alt* pair-imp-alt* term-alt* nonterm-imp-alt* nonterm-nonimp-alt*))
+    #`(lambda (stx error? nested? maybe?)
+        (or (syntax-case stx ()
+              [(unquote id)
+               (and (unquote? #'unquote) (identifier? #'id))
+               (if nested?
+                   (make-nano-unquote #'id)
+                   (cond
+                     #,@(map (make-term-clause #'#'id) term-alt*)
+                     ; TODO: right now we can match the meta for this item, but we
+                     ; cannot generate the needed nano-meta because we have no
+                     ; alt record to put into it.  (perhaps the current model is
+                     ; just pushed as far as it can be right now, and we need to
+                     ; rework it.)
+                     #,@(map (make-nonterm-unquote #'#'id) nonterm-imp-alt*)
+                     #,@(map (make-nonterm-unquote #'#'id) nonterm-nonimp-alt*)
+                     [else #f]))]
+              [(unquote x)
+               (unquote? #'unquote)
+               (if nested?
+                   (if #,cata?
+                       (parse-cata #'x '#,(ntspec-name ntspec) maybe?)
+                       (make-nano-unquote #'x))
+                   (raise-syntax-error #f "cata unsupported at top-level of pattern" stx))]
+              [_ #f])
+            #,@(map (make-nonterm-clause #'stx #'maybe?) nonterm-nonimp-alt*)
+            (syntax-case stx ()
+              [(a . d)
+               (cond
+                 #,@(map (make-pair-clause #'stx #'#'a #'#'d) pair-alt*)
+                 #,@(map (make-pair-clause #'stx #'#'a #'#'d) pair-imp-alt*)
+                 [else #f])]
+              [()
+               (cond
+                 #,@(map (make-null-clause #'stx) pair-alt*)
+                 #,@(map (make-null-clause #'stx) pair-imp-alt*)
+                 [else (make-nano-quote (syntax/loc stx '()))])]
+              ; if we find something here that is not a pair, assume it should
+              ; be treated as a quoted constant, and will be checked appropriately
+              ; by the run-time constructor check
+              [atom (make-nano-quote (syntax/loc stx 'atom))])
+            #,@(map (make-nonterm-clause #'stx #'maybe?) nonterm-imp-alt*)
+            (and error?
+                 (raise-syntax-error #f "invalid pattern or template" stx)))))
+
   (let ([lang-name (language-name desc)]
         [ntspec* (language-ntspecs desc)]
         [tspec* (language-tspecs desc)])
@@ -369,8 +387,7 @@
                                            (syntax->datum (language-name omrec)))
                                    pass-name
                                    ntname))])
-       ;(printf "stuff: ~a~n" #'stuff)
-       ;(newline)
+       ;(printf "stuff: ~a~n~n" #'stuff)
        (output-records->syntax pass-name ntname omrec ometa-parser
                                (ometa-parser (syntax->datum ntname) (syntax/loc x stuff) #f)))
      #;(let ([stx #f])
@@ -470,6 +487,12 @@
          #`(#,(pair-alt-maker prec-alt) '#,pass-name #,@field* #,@(map id->msg id*))
          #f var* binding*))))
   (define (process-nano-elt elt spec binding*)
+    #|
+    (displayln elt)
+    (displayln spec)
+    (displayln binding*)
+    (newline)
+|#
     (cond
       [(nano-meta? elt)
        #;(assert (pair-alt? (nano-meta-alt elt)))
@@ -497,5 +520,14 @@
   (let-values ([(elt id var* binding*)
                 (process-nano-elt
                  rhs-rec (nonterm-id->ntspec 'define-pass ntname (language-ntspecs omrec)) '())])
+    #|
+    (displayln "elt")
+    (pretty-print rhs-rec)
+    (pretty-print elt)
+    (displayln id)
+    (displayln var*)
+    (displayln binding*)
+    (newline)
+|#
     (quasisyntax/loc pass-name
       (let #,binding* #,elt))))

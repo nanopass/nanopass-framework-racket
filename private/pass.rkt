@@ -341,35 +341,34 @@
                                                   (tproc fml ...)))))))))
                    #'lambda-expr)))))
 
-    (define make-processor-lambda
-      (lambda (pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)
-        (let ([maybe-olang (pass-desc-maybe-olang pass-desc)]
-              [maybe-otype (pdesc-maybe-otype pdesc)] ; HERE
-              [tfml (car (generate-temporaries '(x)))]
-              [fml* (pdesc-fml* pdesc)])
-          #`(lambda #,fml*
-              (let ([#,tfml #,(car fml*)])
-                #,@((lambda (forms)
-                      (if maybe-olang
-                          (list
-                            (rhs-in-context-quasiquote (pass-desc-name pass-desc)
-                              maybe-otype maybe-olang maybe-ometa-parser #`(begin #,@forms)))
-                          forms))
-                     (if (let ([maybe-itype (pdesc-maybe-itype pdesc)])
-                           (and maybe-itype 
-                                (nonterm-id->ntspec? maybe-itype
-                                  (language-ntspecs
-                                    (pass-desc-maybe-ilang pass-desc)))))
-                         (let-values  ([(body defn*)
-                                        (syntax-case (pdesc-body pdesc) ()
-                                          [((definitions defn* ...) . body)
-                                           (eq? (datum definitions) 'definitions)
-                                           (values #'body #'(defn* ...))]
-                                          [body (values #'body '())])])
-                           #`(#,@defn*
-                               #,(make-processor-clauses pass-desc tfml maybe-imeta-parser maybe-ometa-parser pdesc body)))
-                         (pdesc-body pdesc))))))))
-
+    (define (make-processor-lambda pass-desc maybe-imeta-parser maybe-ometa-parser pdesc)
+      (let ([maybe-olang (pass-desc-maybe-olang pass-desc)]
+            [maybe-otype (pdesc-maybe-otype pdesc)] ; HERE
+            [tfml (car (generate-temporaries '(x)))]
+            [fml* (pdesc-fml* pdesc)])
+        #`(lambda #,fml*
+            (let ([#,tfml #,(car fml*)])
+              #,@((lambda (forms)
+                    (if maybe-olang
+                        (list
+                         (rhs-in-context-quasiquote (pass-desc-name pass-desc)
+                                                    maybe-otype maybe-olang maybe-ometa-parser #`(begin #,@forms)))
+                        forms))
+                  (if (let ([maybe-itype (pdesc-maybe-itype pdesc)])
+                        (and maybe-itype 
+                             (nonterm-id->ntspec? maybe-itype
+                                                  (language-ntspecs
+                                                   (pass-desc-maybe-ilang pass-desc)))))
+                      (let-values  ([(body defn*)
+                                     (syntax-case (pdesc-body pdesc) ()
+                                       [((definitions defn* ...) . body)
+                                        (eq? (datum definitions) 'definitions)
+                                        (values #'body #'(defn* ...))]
+                                       [body (values #'body '())])])
+                        #`(#,@defn*
+                           #,(make-processor-clauses pass-desc tfml maybe-imeta-parser maybe-ometa-parser pdesc body)))
+                      (pdesc-body pdesc)))))))
+  
     (define make-processor-clauses
       (lambda (pass-desc tfml imeta-parser maybe-ometa-parser pdesc cl*)
         (let* ([itype (pdesc-maybe-itype pdesc)] ; HERE
