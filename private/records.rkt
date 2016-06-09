@@ -1,5 +1,6 @@
 #lang racket/base
-;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell, Leif Andersen
+;;; Copyright (c) 2000-2013 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell,
+;;; Leif Andersen
 ;;; See the accompanying file Copyright for details
 
 (require racket/contract/base)
@@ -564,6 +565,20 @@
           (let ([ntalt-tag-bits (foldl (annotate-alt*! bits) 0 ntspec*)])
             (for-each annotate-all-pred! ntspec*)))))))
 
+(module helper racket/base
+  (provide record-check)
+  (define ((record-check pred? fld msg name who alt) x)
+    (unless (pred? x)
+      (if msg
+          (error who
+                 "expected ~s but received ~s in field ~s of ~s from ~a"
+                 name x fld alt msg)
+          (error who
+                 "expected ~s but received ~s in field ~s of ~s"
+                 name x fld alt)))))
+  
+(require (for-template 'helper))
+    
 (define (language->lang-records lang)
   (define lang-rec-id (language-struct lang))
   (define lang-unparser-id (language-unparser lang))
@@ -596,16 +611,7 @@
                                    pred?)])
             #`(#,(let f ([level level])
                    (if (= level 0)
-                       #`(lambda (x)
-                           (unless (pred? x)
-                             (let ([msg #,msg])
-                               (if msg
-                                   (error who
-                                          "expected ~s but received ~s in field ~s of ~s from ~a"
-                                          '#,name x '#,fld '#,(alt-syn alt) msg)
-                                   (error who
-                                          "expected ~s but received ~s in field ~s of ~s"
-                                          '#,name x '#,fld '#,(alt-syn alt))))))
+                       #`(record-check pred? '#,fld #,msg '#,name who '#,(alt-syn alt))
                        #`(lambda (x)
                            (for-each #,(f (- level 1)) x))))
                 #,fld)))))
@@ -658,32 +664,31 @@
        ntrec ...
        altrec ...)))
 
-(define language->lang-predicates
-  (lambda (desc id)
-    (let ([name (language-name desc)])
-      (let loop ([ntspecs (language-ntspecs desc)] [nt?* '()] [term?* '()])
-        (if (null? ntspecs)
-            (with-syntax ([lang? (format-id name "~a?" name)]
-                          [lang-pred? (format-id name "~a?" (language-struct desc))]
-                          [(nt? ...) nt?*]
-                          [(term? ...) term?*])
-              #'((define lang?
-                   (lambda (x)
-                     (or (lang-pred? x) (term? x) ...)))
-                  nt? ...))
-            (let ([ntspec (car ntspecs)])
-              (loop (cdr ntspecs)
-                (with-syntax ([nt? (format-id name "~a-~a?" name (ntspec-name ntspec))]
-                              [lambda-expr (ntspec-all-pred ntspec)])
-                  (cons #'(define nt? lambda-expr) nt?*))
-                (let loop ([alts (ntspec-alts ntspec)] [term?* term?*])
-                  (if (null? alts)
-                      term?*
-                      (loop (cdr alts)
-                        (let ([alt (car alts)])
-                          (if (terminal-alt? alt)
-                              (cons (tspec-pred (terminal-alt-tspec alt (language-tspecs desc))) term?*)
-                              term?*))))))))))))
+(define (language->lang-predicates desc id)
+  (let ([name (language-name desc)])
+    (let loop ([ntspecs (language-ntspecs desc)] [nt?* '()] [term?* '()])
+      (if (null? ntspecs)
+          (with-syntax ([lang? (format-id name "~a?" name)]
+                        [lang-pred? (format-id name "~a?" (language-struct desc))]
+                        [(nt? ...) nt?*]
+                        [(term? ...) term?*])
+            #'((define lang?
+                 (lambda (x)
+                   (or (lang-pred? x) (term? x) ...)))
+               nt? ...))
+          (let ([ntspec (car ntspecs)])
+            (loop (cdr ntspecs)
+                  (with-syntax ([nt? (format-id name "~a-~a?" name (ntspec-name ntspec))]
+                                [lambda-expr (ntspec-all-pred ntspec)])
+                    (cons #'(define nt? lambda-expr) nt?*))
+                  (let loop ([alts (ntspec-alts ntspec)] [term?* term?*])
+                    (if (null? alts)
+                        term?*
+                        (loop (cdr alts)
+                              (let ([alt (car alts)])
+                                (if (terminal-alt? alt)
+                                    (cons (tspec-pred (terminal-alt-tspec alt (language-tspecs desc))) term?*)
+                                    term?*)))))))))))
   
 ;; utilities moved out of pass.ss
 (define-who exists-alt?
