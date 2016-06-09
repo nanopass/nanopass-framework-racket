@@ -533,10 +533,8 @@
                       (let ([all-pred (if (null? pred*)
                                           (ntspec-pred ntspec)
                                           #`(lambda (x)
-                                              (or ((let () (define-values (t) #,(ntspec-pred ntspec)) t) x)
-                                                  #,@(map (lambda (pred)
-                                                            #`((let () (define-values (t) #,pred) t)
-                                                               x))
+                                              (or (#,(ntspec-pred ntspec) x)
+                                                  #,@(map (lambda (pred) #`(#,pred x))
                                                           pred*))))]
                             [all-term-pred (cond
                                              [(null? term-pred*) #f]
