@@ -333,17 +333,15 @@
                 ntspec*)
          #t)))
  
-(define nonterminal-meta->ntspec
-  (lambda (meta ntspecs)
-    (let ([meta (meta-var->raw-meta-var (maybe-syntax->datum meta))])
-      (findf (lambda (x) (memq meta (map maybe-syntax->datum (ntspec-meta-vars x))))
-        ntspecs))))
+(define (nonterminal-meta->ntspec meta ntspecs)
+  (define meta* (meta-var->raw-meta-var (maybe-syntax->datum meta)))
+  (findf (lambda (x) (memq meta* (map maybe-syntax->datum (ntspec-meta-vars x))))
+         ntspecs))
   
-(define terminal-meta->tspec
-  (lambda (meta tspecs)
-    (let ([meta (meta-var->raw-meta-var (maybe-syntax->datum meta))])
-      (findf (lambda (x) (memq meta (map maybe-syntax->datum (tspec-meta-vars x))))
-        tspecs))))
+(define (terminal-meta->tspec meta tspecs)
+  (define meta* (meta-var->raw-meta-var (maybe-syntax->datum meta)))
+  (findf (lambda (x) (memq meta* (map maybe-syntax->datum (tspec-meta-vars x))))
+         tspecs))
 
 ;;; TODO, figure out if this can ever be called, if not remove the
 ;;;       reference to it, if so, figure out what should be implemented.

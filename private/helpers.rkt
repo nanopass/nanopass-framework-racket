@@ -181,28 +181,29 @@
                                            [(_ x) (extended-quasiquote x)])])
                             . body)]))
 
+(define-for-syntax ((build-quasi x* quasi) x)
+  (define replace-vars
+    (let ([vars x*])
+      (lambda (b)
+        (let f ([b b])
+          (syntax-case b ()
+            [id (identifier? #'id)
+                (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
+                    #'(unquote id)
+                    #'id)]
+            [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) #'(a . d))]
+            [atom #'atom])))))
+  (syntax-case x ()
+    [(_ b)
+     (with-syntax ([b (replace-vars #'b)])
+       #`(#,quasi b))]))
+
 (define-syntax (with-auto-unquote x)
   (syntax-parse x
     [(k (x* ...) . body)
      #:with quasiquote (datum->syntax #'k 'quasiquote)
-     #'(splicing-let-syntax ([quasiquote
-                              (lambda (x)
-                                (define replace-vars
-                                  (let ([vars (list #'x* ...)])
-                                    (lambda (b)
-                                      (let f ([b b])
-                                        (syntax-case b ()
-                                          [id (identifier? #'id)
-                                              (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
-                                                  #'(unquote id)
-                                                  #'id)]
-                                          [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) #'(a . d))]
-                                          [atom #'atom])))))
-                                (syntax-case x ()
-                                  [(_ b)
-                                   (with-syntax ([b (replace-vars #'b)])
-                                     #'`b)]))])
-                            . body)]))
+     #'(splicing-let-syntax ([quasiquote (build-quasi (list #'x* ...) #'quasiquote)])
+         . body)]))
 
 (define check-unique-identifiers
   (lambda (who msg expr ls)
