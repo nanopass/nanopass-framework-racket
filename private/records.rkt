@@ -600,7 +600,7 @@
                (raise-syntax-error 'define-language
                                    (format "unrecognized meta-variable in language ~s"
                                            (maybe-syntax->datum (language-name lang)))
-                                   fld))])
+                                   #;fld))])
         (lambda (pred? name)
           (with-syntax ([pred? (if maybe?
                                    #`(lambda (x) (or (eq? x #f) (#,pred? x)))

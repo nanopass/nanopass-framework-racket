@@ -47,13 +47,12 @@
                         [tspec-body (make-unparse-term-clause-body tspec)])
             #'((pred? ir) tspec-body)))))
     
-    (define strip-maybe
-      (lambda (tmpl)
-        (syntax-case tmpl (maybe)
-          [(maybe x) (and (identifier? #'x) (eq? (datum maybe) 'maybe)) #'x]
-          [(a . d) (with-syntax ([a (strip-maybe #'a)] [d (strip-maybe #'d)]) #'(a . d))]
-          [() tmpl]
-          [oth tmpl])))
+    (define (strip-maybe tmpl)
+      (syntax-case tmpl (maybe)
+        [(maybe x) (and (identifier? #'x) (eq? (datum maybe) 'maybe)) (syntax/loc tmpl x)]
+        [(a . d) (with-syntax ([a (strip-maybe #'a)] [d (strip-maybe #'d)]) (syntax/loc tmpl (a . d)))]
+        [() tmpl]
+        [oth tmpl]))
     
     (define build-accessor-expr
       (lambda (acc level maybe?)
@@ -65,32 +64,31 @@
               #`(#,f (#,acc ir))
               (loop (- level 1) #`(lambda (t) (map #,f t)))))))
     
-    (define build-template-wrapper
-      (lambda (tmpl alt)
-        (with-syntax ([(e ...) (map build-accessor-expr
-                                    (pair-alt-accessors alt)
-                                    (pair-alt-field-levels alt)
-                                    (pair-alt-field-maybes alt))]
-                      [(fld ...) (pair-alt-field-names alt)]
-                      [tmpl tmpl])
-          #'(let ([fld e] ...)
-              (with-extended-quasiquote
-                  (with-auto-unquote (fld ...) `tmpl))))))
+    (define (build-template-wrapper tmpl alt)
+      (with-syntax ([(e ...) (map build-accessor-expr
+                                  (pair-alt-accessors alt)
+                                  (pair-alt-field-levels alt)
+                                  (pair-alt-field-maybes alt))]
+                    [(fld ...) (pair-alt-field-names alt)]
+                    [tmpl* tmpl])
+        (quasisyntax/loc tmpl
+          (let ([fld e] ...)
+            (with-extended-quasiquote
+                (with-auto-unquote (fld ...) #,(syntax/loc tmpl `tmpl*)))))))
     
-    (define make-pair-clause
-      (lambda (alt)
-        (with-syntax ([pred? (pair-alt-pred alt)]
-                      [raw-body (build-template-wrapper (strip-maybe (alt-syn alt)) alt)])
-          #`((pred? ir)
-             #,(let ([pretty (alt-pretty alt)])
-                 (if pretty
-                     #`(if raw?
-                           raw-body
-                           #,(if (alt-pretty-procedure? alt)
-                                 (with-syntax ([(acc ...) (pair-alt-accessors alt)])
-                                   #`(#,pretty f (acc ir) ...))
-                                 (build-template-wrapper pretty alt)))
-                     #'raw-body))))))
+    (define (make-pair-clause alt)
+      (with-syntax ([pred? (pair-alt-pred alt)]
+                    [raw-body (build-template-wrapper (strip-maybe (alt-syn alt)) alt)])
+        #`((pred? ir)
+           #,(let ([pretty (alt-pretty alt)])
+               (if pretty
+                   #`(if raw?
+                         raw-body
+                         #,(if (alt-pretty-procedure? alt)
+                               (with-syntax ([(acc ...) (pair-alt-accessors alt)])
+                                 #`(#,pretty f (acc ir) ...))
+                               (build-template-wrapper pretty alt)))
+                   #'raw-body)))))
     
     ;; When one nonterminalA alternative is another nonterminalB, we
     ;; expand all the alternatives of nonterminalB with the alternatives

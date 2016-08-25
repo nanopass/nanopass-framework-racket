@@ -144,29 +144,28 @@
                    (if (= level 1)
                        #`(tmpl0 ... (unquote-splicing #,e))
                        (loop (- level 1) #`(apply append #,e))))))]))))
-    (define rebuild-body
-      (lambda (body level)
-        (syntax-case body (unquote unquote-splicing)
-          [(unquote e) #'(unquote e)]
-          [(unquote-splicing e) #'(unquote-splicing e)]
-          [(tmpl0 ... tmpl1 ellipsis)
-           (eq? (syntax->datum #'ellipsis) '...)
-           (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (+ level 1))])
-             #'(tmpl0 ...))]
-          [(tmpl0 ... tmpl1 ellipsis . tmpl2)
-            (eq? (syntax->datum #'ellipsis) '...)
-            (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (+ level 1))]
-                           [tmpl2 (rebuild-body #'tmpl2 level)])
-              #'(tmpl0 ... . tmpl2))]
-          [(tmpl0 ... tmpl1)
-            (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) level)]
-                           [tmpl1 (rebuild-body #'tmpl1 level)])
-              #'(tmpl0 ... tmpl1))]
-          [(tmpl0 ... tmpl1 . tmpl2)
-            (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ... tmpl1) level)]
-                           [tmpl2 (rebuild-body #'tmpl2 level)])
-              #'(tmpl0 ... . tmpl2))]
-          [other #'other])))
+    (define (rebuild-body body level)
+      (syntax-case body (unquote unquote-splicing)
+        [(unquote e) #'(unquote e)]
+        [(unquote-splicing e) #'(unquote-splicing e)]
+        [(tmpl0 ... tmpl1 ellipsis)
+         (eq? (syntax->datum #'ellipsis) '...)
+         (with-syntax ([(tmpl0 ...) (build-list (syntax/loc body (tmpl0 ... tmpl1)) (+ level 1))])
+           (syntax/loc body (tmpl0 ...)))]
+        [(tmpl0 ... tmpl1 ellipsis . tmpl2)
+         (eq? (syntax->datum #'ellipsis) '...)
+         (with-syntax ([(tmpl0 ...) (build-list #'(tmpl0 ... tmpl1) (+ level 1))]
+                       [tmpl2 (rebuild-body #'tmpl2 level)])
+           #'(tmpl0 ... . tmpl2))]
+        [(tmpl0 ... tmpl1)
+         (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ...) level)]
+                       [tmpl1 (rebuild-body #'tmpl1 level)])
+           #'(tmpl0 ... tmpl1))]
+        [(tmpl0 ... tmpl1 . tmpl2)
+         (with-syntax ([(tmpl0 ...) (rebuild-body #'(tmpl0 ... tmpl1) level)]
+                       [tmpl2 (rebuild-body #'tmpl2 level)])
+           #'(tmpl0 ... . tmpl2))]
+        [other #'other]))
     (syntax-case x ()
       [(k body)
        (with-syntax ([body (rebuild-body #'body 0)])
@@ -191,7 +190,7 @@
                 (if (memf (lambda (var) (free-identifier=? var #'id)) vars)
                     #'(unquote id)
                     #'id)]
-            [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) #'(a . d))]
+            [(a . d) (with-syntax ([a (f #'a)] [d (f #'d)]) (syntax/loc x (a . d)))]
             [atom #'atom])))))
   (syntax-case x ()
     [(_ b)
@@ -327,32 +326,32 @@
                     [(char-numeric? (string-ref s i)) (f (- i 1))]
                     [else (string->symbol (substring s 0 (+ i 1)))]))])))))
 
-(define-syntax partition-syn
-  (lambda (x)
-    (syntax-case x ()
-      [(_ ls-expr () e0 e1 ...) #'(begin ls-expr e0 e1 ...)]
-      [(_ ls-expr ([set pred] ...) e0 e1 ...)
-       (with-syntax ([(pred ...) 
-                      (let f ([preds #'(pred ...)])
-                        (if (stx-null? (stx-cdr preds))
-                            (if (free-identifier=? (stx-car preds) #'otherwise)
-                                (list #'(lambda (x) #t))
-                                preds)
-                            (cons (stx-car preds) (f (stx-cdr preds)))))])
-         #'(let-values ([(set ...)
-                          (let f ([ls ls-expr])
-                            (if (null? ls)
-                                (let ([set '()] ...) (values set ...))
-                                (let-values ([(set ...) (f (cdr ls))])
-                                  (cond
-                                    [(pred (car ls))
-                                      (let ([set (cons (car ls) set)])
-                                        (values set ...))]
-                                    ...
-                                    [else (error 'partition-syn 
-                                            "no home for ~s"
-                                            (car ls))]))))])
-             e0 e1 ...))])))
+(define-syntax (partition-syn x)
+  (syntax-case x ()
+    [(_ ls-expr () e0 e1 ...) (syntax/loc x (begin ls-expr e0 e1 ...))]
+    [(_ ls-expr ([set pred] ...) e0 e1 ...)
+     (with-syntax ([(pred ...) 
+                    (let f ([preds #'(pred ...)])
+                      (if (stx-null? (stx-cdr preds))
+                          (if (free-identifier=? (stx-car preds) #'otherwise)
+                              (list #'(lambda (x) #t))
+                              preds)
+                          (cons (stx-car preds) (f (stx-cdr preds)))))])
+       (syntax/loc x
+         (let-values ([(set ...)
+                       (let f ([ls ls-expr])
+                         (if (null? ls)
+                             (let ([set '()] ...) (values set ...))
+                             (let-values ([(set ...) (f (cdr ls))])
+                               (cond
+                                 [(pred (car ls))
+                                  (let ([set (cons (car ls) set)])
+                                    (values set ...))]
+                                 ...
+                                 [else (error 'partition-syn 
+                                              "no home for ~s"
+                                              (car ls))]))))])
+           e0 e1 ...)))]))
   
 (define bound-id-member? 
   (lambda (id id*)

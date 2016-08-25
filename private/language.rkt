@@ -176,17 +176,24 @@
       (syntax-parse alt*
         #:datum-literals (=> -> :)
         [() '()]
-        [((=> syn pretty) . alt*)
-         (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
-        [(syn => pretty . alt*)
-         (cons (make-alt #'syn #'pretty #f) (f #'alt*))]
-        [((-> syn prettyf) . alt*)
+        [((=> syn pretty) . alt**)
+         (cons (make-alt (syntax/loc alt* syn) (syntax/loc alt* pretty) #f)
+               (f (syntax/loc alt* alt**)))]
+        [(syn => pretty . alt**)
+         (cons (make-alt (syntax/loc alt* syn) (syntax/loc alt* pretty) #f)
+               (f (syntax/loc alt* alt**)))]
+        [((-> syn prettyf) . alt**)
          #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
-         (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
-        [(syn -> prettyf . alt*)
+         (cons (make-alt (syntax/loc alt* syn)
+                         (syntax/loc alt* (with-extended-quasiquote prettyf)) #t)
+               (f (syntax/loc alt* alt**)))]
+        [(syn -> prettyf . alt**)
          #:with with-extended-quasiquote (datum->syntax #'-> 'with-extended-quasiquote)
-         (cons (make-alt #'syn #'(with-extended-quasiquote prettyf) #t) (f #'alt*))]
-        [(syn . alt*) (cons (make-alt #'syn #f #f) (f #'alt*))]
+         (cons (make-alt (syntax/loc alt* syn)
+                         (syntax/loc alt* (with-extended-quasiquote prettyf)) #t)
+               (f (syntax/loc alt* alt**)))]
+        [(syn . alt**)
+         (cons (make-alt (syntax/loc alt* syn) #f #f) (f (syntax/loc alt* alt**)))]
         [x (raise-syntax-error 'define-language "unrecognized production list" #'x)])))
   
   (define parse-terms
@@ -280,12 +287,12 @@
   
   (define (escape-pattern x)
     (syntax-case x (...)
-      [... #'(... (... ...))]
+      [... (syntax/loc x (... (... ...)))]
       [(a . d) (with-syntax ([a (escape-pattern #'a)]
                              [d (escape-pattern #'d)])
-                 #'(a . d))]
-      [() #'()]
-      [id  (identifier? #'id) #'id]))
+                 (syntax/loc x (a . d)))]
+      [() (syntax/loc x ())]
+      [id  (identifier? #'id) (syntax/loc x id)]))
 
   (define (finish ntname lang* id desc) ; constructs the output
     (define lang (syntax-property lang* 'original-for-check-syntax #t))
