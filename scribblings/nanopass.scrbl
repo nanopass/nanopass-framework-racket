@@ -1,13 +1,22 @@
 #lang scribble/manual
 
-@require[@for-label[@except-in[nanopass + - * => -> ...]]]
+@require[@for-label[@except-in[racket + - * => -> ...]]]
 
 @title{Nanopass Framework}
 @author["Andrew W. Keep" "Leif Andersen"]
 
-@defmodule[nanopass/base]
-The @racket[nanopass/base] library provides all of the bla.
-@defmodulelang[nanopass]
+@;@declare-exporting[nanopass/base nanopass]
+@declare-exporting[nanopass/base nanopass #:use-sources (nanopass/base)]
+
+@defmodule*/no-declare[(nanopass/base)]{
+ The @racketmodname[nanopass/base] library provides all of
+ the Nanopass framework.}
+
+@defmodulelang*/no-declare[(nanopass)]{
+ The @racketmodname[nanopass] language provides everything
+ in @racketmodname[nanopass/base], as well as the 
+ @racketmodname[racket], language. Making it suitable for
+ use as language.}
 
 @section{Overview}
 The nanopass framework provides a tool for writing compilers composed of
