@@ -306,12 +306,8 @@
                   [(tspec-preds ...) (map tspec-pred (language-tspecs desc))])
       (define stx
         #`(begin
-            (define unparser-out-name
-              (let ()
-                (define-unparser unparser-name #,lang)
-                (make-constructor-style-printer
-                 (lambda (x) (format "language:~a" '#,lang))
-                 (lambda (lang) (list (unparser-name lang))))))
+            (define unparser-box (void))
+            (define unparser-out-name (lambda args (apply unparser-box args)))
             records ...
             predicates ...
             (define-syntax #,lang
@@ -398,6 +394,10 @@
                meta-parser))
             ;(define-property #,lang meta-parser-property meta-parser)
             (define-unparser unparser-name #,lang)
+            (set! unparser-box
+              (make-constructor-style-printer
+               (lambda (x) (format "language:~a" '#,lang))
+               (lambda (lang) (list (unparser-name lang)))))
             (void)))
       (syntax-property stx
                        'mouse-over-tooltips
