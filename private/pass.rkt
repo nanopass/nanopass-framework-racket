@@ -346,6 +346,8 @@
             [maybe-otype (pdesc-maybe-otype pdesc)] ; HERE
             [tfml (car (generate-temporaries '(x)))]
             [fml* (pdesc-fml* pdesc)])
+        (unless (pair? fml*)
+          (raise-syntax-error who "empty formal lists not currently supported in" (pass-desc-name pass-desc)))
         #`(lambda #,fml*
             (let ([#,tfml #,(car fml*)])
               #,@((lambda (forms)
