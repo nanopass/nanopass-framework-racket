@@ -223,7 +223,7 @@ object is of this type when checking the output of a pass.
 terminal type in language and pass definitions.
 
 @racket[prettifier] is an expression that evaluates to a function of one
-argument used during when the language unparser is called in ``pretty'' mode to
+argument used when the language unparser is called in ``pretty'' mode to
 produce pretty, S-expression representation.
 
 The final form is syntactic sugar for the form above it.
