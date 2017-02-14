@@ -379,7 +379,7 @@ Will return:
 
 Passes are used to specify transformations over languages defined using
 @racket[define-language].
-Before getting into the details of defining passes, lets take a look at a
+Before getting into the details of defining passes, let's take a look at a
 simple pass to convert from @racket[L0] to @racket[L1].
 This pass will need to:
 @itemize[
