@@ -74,7 +74,7 @@ The name of the predicate is derived from the name of the terminal, by adding a
 @racket[?] character.
 For the @racket[L0] language we will need to provide @racket[variable?],
 @racket[primitive?], @racket[datum?], and @racket[constant?] predicates.
-We might decided to represent variables as symbols, select a small list of
+We might decide to represent variables as symbols, select a small list of
 primitives, represent datum as any Racket value, and limit constants to those
 things that have a syntax that does not require a quote:
 
