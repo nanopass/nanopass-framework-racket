@@ -251,7 +251,7 @@ This can be done in the same step with a terminal clause like the following:
 A @racket[terminals] clause is an error elsewhere.
 }
 
-@subsubsection{Non-terminals clause.}
+@subsubsection{Non-terminals clause}
 The non-terminals clause specifies the valid productions in a language.
 Each non-terminal has a name, a set of meta-variables, and a set of
 productions.
