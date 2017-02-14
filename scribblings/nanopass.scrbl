@@ -110,7 +110,7 @@ or @racket[c]), an S-expression that starts with a literal (in this case
 an S-expression that does not start with a literal (in this case
 @racket[(e0 e1 ...)].
 In addition to the numeric or start (@racket[*]) suffix used in the example, a
-question mark (@racket[?]) or carot (@racket[^]) can also be used.
+question mark (@racket[?]) or caret (@racket[^]) can also be used.
 The suffixes can also be used in combination.
 The suffixes do not contain any semantic value and are used simply to allow the
 meta-variable to be used more then once (as in the @racket[(if e0 e1 e2)]
