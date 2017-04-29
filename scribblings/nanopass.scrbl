@@ -59,7 +59,7 @@ might look like:
 ]
 
 The @racket[L0] language consists of a set of terminals (listed in in the
-@racket[terminals] form) and a signle non-terminal @racket[Expr].
+@racket[terminals] form) and a single non-terminal @racket[Expr].
 The terminals of this language are @racket[variable], @racket[primitive],
 @racket[datum], and @racket[constant].
 Listed with each terminal is one or more meta-variable that can be used to
