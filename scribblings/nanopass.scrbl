@@ -59,7 +59,7 @@ might look like:
 ]
 
 The @racket[L0] language consists of a set of terminals (listed in in the
-@racket[terminals] form) and a signle non-terminal @racket[Expr].
+@racket[terminals] form) and a single non-terminal @racket[Expr].
 The terminals of this language are @racket[variable], @racket[primitive],
 @racket[datum], and @racket[constant].
 Listed with each terminal is one or more meta-variable that can be used to
@@ -122,7 +122,6 @@ Now that we have the @racket[L0] language we can imagine specifying a language
 with only the two-armed if, i.e., @racket[(if e0 e1 e2)], only quoted
 constants, and lambda, let, and letrec bodies that contain only a single
 expression.
-One option is to simply define a whole new langauge from scratch that contains
 all the elements of the old language, with just the changes we want.
 This will work fine, but we might want to simply define what changes.
 The nanopass framework provides a syntax to allow a language to be defined as
@@ -431,7 +430,7 @@ Similar to the pass, a processor starts with a name (in this case
 The first part of a signature is a non-terminal specifier (in this case
 @racket[Expr]) along with the list of formals (in this case just the
 @racket[ir]).
-Here the @racket[Expr] corresponds to the one defined in the input langauge,
+Here the @racket[Expr] corresponds to the one defined in the input language,
 @racket[L0].
 The output includes a non-terminal output specifier (in this case @racket[Expr]
 as well) and a list of extra return expressions.
