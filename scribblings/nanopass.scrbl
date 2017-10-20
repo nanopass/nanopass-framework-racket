@@ -1,6 +1,13 @@
 #lang scribble/manual
-
-@require[@for-label[@except-in[racket + - * => -> ...]]]
+@require[nanopass/base
+         @for-label[@except-in[racket + - * => -> ...
+                                      extends primitive?]
+                    @only-in[nanopass/base define-pass
+                                           define-language
+                                           extends
+                                           entry
+                                           terminals
+                                           language->s-expression]]]
 
 @title{Nanopass Framework}
 @author["Andrew W. Keep" "Leif Andersen"]
@@ -516,13 +523,13 @@ writing the pass.
 @racket[extra-return-val] is a Racket expression.
 
 @racket[expr] is a Racket expression that can contain a
-@racket[quasiquote-expr].
+@racket[_quasiquote-expr].
 
-@racket[definition] is a Racket definition.
+@racket[definition-clause] is a Racket definition.
 
 @racket[body-expr] is a Racket expression.
 
-@racket[quasiquote-expr] is a Racket quasiquote expression that corresponds to
+@racket[_quasiquote-expr] is a Racket quasiquote expression that corresponds to
 a form of the output non-terminal specified in a processor.
 
 @racket[non-terminal-spec] determines the behavior of a processor.
@@ -593,18 +600,19 @@ including it in the quasiquoted expression:
 Cata-morphisms are defined in patterns as an unquoted S-expression.  A
 cata-morphism has the following syntax:
 
-@racketgrammar*[(cata-morphism ,[identifier ...]
+@racketgrammar*[#:literals (unquote : ->)
+                (cata-morphism ,[identifier ...]
                                ,[identifier expr ... -> identifer ...]
                                ,[func-expr : identifier expr ... -> identifier ...]
                                ,[func-expr : -> identifier ...])]
 
-Where @racket[expr] is a Racket expression, @racket[func-expr] is an expression that
-results in a function, and @racket[identifier] is an identifier that will be bound
-to the input subexpression when it is on the left of the @racket[-] and the return
+Where @racket[_expr] is a Racket expression, @racket[_func-expr] is an expression that
+results in a function, and @racket[_identifier] is an identifier that will be bound
+to the input subexpression when it is on the left of the @racket[_->] and the return
 value(s) of the func when it is on the right side.
 
-When the @racket[func-expr] is not specified, @racket[define-pass] attempts to find or
-auto-generate an appropriate processor.  When the @racket[func-expr] is the name of
+When the @racket[_func-expr] is not specified, @racket[define-pass] attempts to find or
+auto-generate an appropriate processor.  When the @racket[_func-expr] is the name of
 a processor, the input non-terminal, output non-terminal, and number of input
 expressions and return values will be checked to ensure they match.
 
