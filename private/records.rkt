@@ -475,7 +475,10 @@
                                                syn (stx-car syn))]))]
                                   [rec-sym (unique-symbol lang-name ntname name)]
                                   [m? (meta? name)])
-                             (let-values ([(p fields levels maybes) (convert-pattern (if m? syn (stx-cdr syn)))])
+                             (let-values ([(p fields levels maybes)
+                                           (convert-pattern (if m?
+                                                                syn
+                                                                (datum->syntax syn (stx-cdr syn))))])
                                (check-unique-identifiers 'define-language "found one or more duplicate fields in production" syn fields)
                                (let ([tag (+ (arithmetic-shift next bits) tag)])
                                  (set-pair-alt-tag! a tag)

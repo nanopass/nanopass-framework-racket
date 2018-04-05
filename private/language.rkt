@@ -22,7 +22,7 @@
           "helpers.rkt"
           "unparser.rkt"
           (for-syntax racket/syntax
-                      racket/base
+                      (except-in racket/base syntax/loc)
                       racket/list
                       syntax/stx
                       syntax/parse

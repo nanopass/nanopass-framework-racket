@@ -7,6 +7,7 @@
 (provide
   ;; hack
   maybe-syntax->datum
+  syntax/loc
 
   ;; better error reporting for missing language definitions
   lookup-language
@@ -65,7 +66,18 @@
                      syntax/parse)
          syntax/srcloc
          racket/splicing
-         racket/pretty)
+         racket/pretty
+         (prefix-in base: racket/base))
+
+
+;; We need this because syntax/loc
+;;   in Racket 7 changed behavior.
+(define-syntax (syntax/loc stx)
+  (syntax-parse stx
+    [(_ srcloc the-stx)
+     #'(if (syntax? srcloc)
+           (base:syntax/loc srcloc the-stx)
+           #'the-stx)]))
 
 (define maybe-syntax->datum
   (lambda (x)
