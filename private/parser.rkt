@@ -9,7 +9,7 @@
          (only-in "helpers.rkt" define-who np-parse-fail-token)
          (for-syntax racket/syntax
                      syntax/stx
-                     racket/base
+                     (except-in racket/base syntax/loc)
                      "helpers.rkt"
                      "records.rkt"
                      "syntaxconvert.rkt"))

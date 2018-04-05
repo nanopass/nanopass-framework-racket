@@ -16,7 +16,7 @@
          "syntaxconvert.rkt"
          "meta-syntax-dispatch.rkt")
 
-(require (for-template racket))
+(require (for-template (except-in racket syntax/loc)))
 
 (define (make-meta-parser desc)
   (define (escape-pattern x)

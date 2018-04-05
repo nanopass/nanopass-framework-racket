@@ -13,7 +13,7 @@
   (for-syntax racket/syntax
               syntax/stx
               syntax/parse
-              racket/base
+              (except-in racket/base syntax/loc)
               "helpers.rkt"
               "records.rkt"
               "syntaxconvert.rkt"))

@@ -20,7 +20,7 @@
                      racket/syntax
                      syntax/stx
                      syntax/parse
-                     racket/base
+                     (except-in racket/base syntax/loc)
                      racket/pretty
                      unstable/pretty
                      "helpers.rkt"
