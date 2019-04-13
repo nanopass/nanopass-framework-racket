@@ -648,7 +648,7 @@ The auto-generated clauses can also process sub-forms recursively.
 This is why the @racket[(begin ,e* ... ,e)], @racket[(if ,e0 ,e1 ,e2)], and
 @racket[(,e0 ,e1 ...)] clauses can be eliminated.
 
-The auto-generated clauses can also handle grammars with more then one
+The auto-generated clauses can also handle grammars with more than one
 non-terminal.
 For each sub-term in an auto-generated clause, a processor is selected.
 Processors are selected based on the input non-terminal and output non-terminal
