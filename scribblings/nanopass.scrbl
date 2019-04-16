@@ -2,12 +2,15 @@
 @require[nanopass/base
          @for-label[@except-in[racket + - * => -> ...
                                       extends primitive?]
-                    @only-in[nanopass/base define-pass
-                                           define-language
-                                           extends
-                                           entry
-                                           terminals
-                                           language->s-expression]]]
+                    @only-in[nanopass/base
+                             define-pass
+                             define-language
+                             extends
+                             entry
+                             terminals
+                             language->s-expression
+                             define-parser
+                             with-output-language]]]
 
 @title{Nanopass Framework}
 @author["Andrew W. Keep" "Leif Andersen"]
@@ -610,6 +613,144 @@ including it in the quasiquoted expression:
     `(let ([,x* ,e*] ...) ,body)))
 ]
 }
+
+@subsection{Where is quasiquote bound, and what is it bound to?}
+
+The nanopass framework rebinds quasiquote within the body of
+a processor clause to the nonterminal of the output language
+specified by the terminal type. For instance, if a pass has
+processors with the following signature:
+
+@codeblock|{
+(define-pass my-pass L0 (ir) -> L1 ()
+  ---
+  (Expr : Expr (ir) -> Expr ()
+    ---)
+  (Stmt : Stmt (ir) -> Stmt ()
+    ---))
+}|
+
+... then quasiquote will be bound to the L1 @racket[Expr]
+nonterminal in the Expr processor and L1 Stmt in the Stmt
+processor.
+
+Within a quasiquote expression, unquote rebinds quasiquote
+to the appropriate nonterminal. For instance, say that we
+had the following productions in our language:
+
+@codeblock|{
+(define-language L1
+  (terminals ---)
+  (Expr (e)
+    ---)
+  (Stmt (stmt)
+    ---
+    (define x e)))
+}|
+
+... then the quasiquote in the Stmt processor above, might have the form:
+
+@codeblock|{
+`(define ,x ,code-to-build-an-Expr)
+}|
+
+In the @racket['code-to-build-an-expr] section quasiquote
+will be rebound to the L1 @racket[Expr] nonterminal. Of course you
+might want to write that code as:
+
+@codeblock|{
+(let ([e ,code-to-build-an-expr])
+  `(define ,x ,e))
+}|
+
+Since the @racket[code-to-build-an-expr] is now in the
+context of the L1 @racket[Stmt] nonterminal. We can use the nanopass
+in-context form to put us in the context of an @racket[Expr].
+
+@defform[(in-context nonterminal form)]{
+ Binds quasiquote to a form that constructs an element of the @racket[nonterminal]
+ form of the current output language during the evaluation of @racket[form].
+}
+
+So, we might write:
+
+@codeblock|{
+(let ([e (in-context Expr ,code-to-build-an-expr)])
+  `(define ,x ,e))
+}|
+
+... and the code building the @racket[Expr] will now have the correct quasiquote.
+
+@subsection{How do I build language forms outside a processor (or even pass)?}
+
+There are basically two ways to build language forms outside
+a processor (or a pass). The first, which is useful for
+large blocks of fixed code in the s-expression version of
+the source language, is to use the language parser. You can define
+a language parser using @racket[define-parser], described above.
+
+For instance,
+
+@codeblock|{
+(define-parser parse-L L)
+}|
+
+... will build the parser for language L and bind it to the function parse-L.
+
+The second, more common, way to do this is with the
+with-output-language form. This form allows you to mix the
+quasiquote s-expression syntax used in the processors with
+the expressions generated elsewhere. The
+with-output-language form has two forms.
+
+@defform*[((with-output-language Language form0 ... form)
+           (with-output-language (Language Nonterminal) form0 ... form))]{
+
+ Binds @racket[in-context] (described above) to a form that is associated
+ with the specified language.
+
+ In the second example, @racket[quasiquote] is also bound to a macro that
+ constructs an element of the specified term.
+
+ In essence, the second form is simply an abbreviation of:
+
+ @racket[(with-output-language Language (in-context Nonterminal) form0 ... form)]
+}
+
+So, given the language:
+
+@codeblock|{
+(define-language L
+  (terminals
+    (symbol (x))
+    ---)
+  (Expr (e)
+    ---
+    (let ([x* e*] ...) e)))
+}|
+
+You could write the function:
+
+@codeblock|{
+(define buld-let
+  (lambda (x* e* body)
+    (with-output-language (L Expr)
+      `(let ([,x* ,e*] ...) ,body))))
+}|
+
+or
+
+@codeblock|{
+(with-output-language (L Expr)
+  (define buld-let
+    (lambda (x* e* body)
+      `(let ([,x* ,e*] ...) ,body))))
+}|
+
+... because @racket[with-output-language] will expand into a begin
+splicing form when wrapping multiple definitions.
+
+
 @subsection[#:tag "cata-morphism"]{Cata-morphims}
 
 Cata-morphisms are defined in patterns as an unquoted S-expression.  A
