@@ -751,6 +751,51 @@ or
 splicing form when wrapping multiple definitions.
 
 
+
+@section{Matching language forms outside of a pass}
+
+In addition to the @racket[define-pass] form, it is possible to match a
+language term using the @racket[nanopass-case] form.
+This can be useful when creating functional abstractions, such as predicates that
+ask a question based on matching a language form.
+For instance, suppose we write a @racket[lambda?] predicate for the
+@racket[L8] language as follows:
+
+
+@codeblock|{
+(define (lambda? e)
+    (nanopass-case (L8 Expr) e
+      [(lambda (,x* ...) ,abody) #t]
+      [else #f]))}|
+
+The @racket[nanopass-case] form has the following syntax:
+
+@defform/subs[(nanopass-case (lang-name nonterminal-name) expr
+                             matching-clause ...)
+              [(matching-clause [pattern guard-clause expr ... expr]
+                                [pattern expr ... expr]
+                                [else expr ... expr])]]{
+
+Given a language/nonterminal pair, an expression, and a sequence of
+pattern/result pairs using the pattern language defined earlier, evaluate
+the right-hand-side of the first matching pattern.
+
+In essesnce, @racket[nanopass-case] provides a more succinct alternative
+to defining a separate @racket[define-pass] form.
+
+In fact, @racket[nanopass-case] expands into a use of @racket[define-pass].
+Specifically the earlier @racket[lambda?] example can be rewritten as
+
+@codeblock|{
+(define-pass lambda? : (L8 Expr) (e) -> * (bool)
+  (Expr : Expr (e) -> * (bool)
+    [(lambda (,x* ...) ,abody) #t]
+    [else #f])
+  (Expr e))
+}|
+
+}
+
 @subsection[#:tag "cata-morphism"]{Cata-morphims}
 
 Cata-morphisms are defined in patterns as an unquoted S-expression.  A
