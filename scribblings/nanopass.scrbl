@@ -796,7 +796,7 @@ Specifically the earlier @racket[lambda?] example can be rewritten as
 
 }
 
-@subsection[#:tag "cata-morphism"]{Cata-morphims}
+@subsection[#:tag "cata-morphism"]{Cata-morphisms}
 
 Cata-morphisms are defined in patterns as an unquoted S-expression.  A
 cata-morphism has the following syntax:
