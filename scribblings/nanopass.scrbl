@@ -780,7 +780,7 @@ Given a language/nonterminal pair, an expression, and a sequence of
 pattern/result pairs using the pattern language defined earlier, evaluate
 the right-hand-side of the first matching pattern.
 
-In essesnce, @racket[nanopass-case] provides a more succinct alternative
+In essence, @racket[nanopass-case] provides a more succinct alternative
 to defining a separate @racket[define-pass] form.
 
 In fact, @racket[nanopass-case] expands into a use of @racket[define-pass].
@@ -828,7 +828,7 @@ the input-language non-terminal and the output-language non-terminal in a
 processor.
 For instance, we could eliminate the @racket[x], @racket[pr], and
 @racket[(quote d)] clauses in our example pass because these forms exist in
-both the @racket[Expr] non-terminal of the input lanugage and the @racket[Expr]
+both the @racket[Expr] non-terminal of the input language and the @racket[Expr]
 non-terminal of the output language.
 The auto-generated clauses can also process sub-forms recursively.
 This is why the @racket[(begin ,e* ... ,e)], @racket[(if ,e0 ,e1 ,e2)], and
@@ -867,7 +867,7 @@ This feature is currently implemented in the framework, but it is possible to
 get into trouble with this feature.
 In general, there are two cases where undesired clauses can be auto-generated.
 @itemize[
-@item{A nested pattern in a clause matches all posible clauses, but because the
+@item{A nested pattern in a clause matches all possible clauses, but because the
 pattern is nested the framework cannot determine this.
 In this case, the
 auto-generated clauses are a drag on the system, but the auto-generate
