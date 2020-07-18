@@ -732,7 +732,7 @@ So, given the language:
 You could write the function:
 
 @codeblock|{
-(define buld-let
+(define build-let
   (lambda (x* e* body)
     (with-output-language (L Expr)
       `(let ([,x* ,e*] ...) ,body))))
@@ -742,7 +742,7 @@ or
 
 @codeblock|{
 (with-output-language (L Expr)
-  (define buld-let
+  (define build-let
     (lambda (x* e* body)
       `(let ([,x* ,e*] ...) ,body))))
 }|
