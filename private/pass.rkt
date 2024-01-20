@@ -1432,7 +1432,7 @@
                                 (raise-syntax-error who
                                                     (format "ambiguous target for implicit transformer call from ~s to ~s\
                                                              try adding default arguments, explicitly stating cata-morphisms\
-                                                             or filing out all casses in the processor."
+                                                             or filling out all cases in the processor."
                                                             itype maybe-otype)
                                                     (pass-desc-name pass-desc) src-stx))
                               pdesc)
