@@ -85,7 +85,7 @@ The name of the predicate is derived from the name of the terminal, by adding a
 For the @racket[L0] language we will need to provide @racket[variable?],
 @racket[primitive?], @racket[datum?], and @racket[constant?] predicates.
 We might decide to represent variables as symbols, select a small list of
-primitives, represent datum as any Racket value, and limit constants to those
+primitives, represent @racket[datum] as any Racket value, and limit constants to those
 things that have a syntax that does not require a quote:
 
 @racketblock[
@@ -123,7 +123,7 @@ In addition to the numeric or start (@racket[*]) suffix used in the example, a
 question mark (@racket[?]) or caret (@racket[^]) can also be used.
 The suffixes can also be used in combination.
 The suffixes do not contain any semantic value and are used simply to allow the
-meta-variable to be used more then once (as in the @racket[(if e0 e1 e2)]
+meta-variable to be used more than once (as in the @racket[(if e0 e1 e2)]
 form).
 
 Finally, in order to create elements of this language, we can use a
@@ -206,14 +206,14 @@ The full syntax for @racket[define-language] is as follows:
                     (extended-production-clause (+ production-clause ...)
                                                 (- production-clause ...))
                     ]]{
-Where @racket[clause] is an extension clause, a entry clause, a terminals clause, or a non-terminal clause.
+Where @racket[clause] is an extension clause, an entry clause, a terminals clause, or a non-terminal clause.
 }
 
 @defidform[extends]{
 The @racket[extends] clause indicates that the language is an extension of an
 existing language.
 Only one extension clause can be specified in a language definition.
-A @racket[extends] clause is an error elsewhere.
+An @racket[extends] clause is an error elsewhere.
 
 @racket[language-name] is the name of an already defined language.
 }
@@ -226,7 +226,7 @@ should be expected first by the pass.
 This default can be overridden in a pass definition, as described in
 @secref{pass-syntax}.
 Only one entry clause can be specified in a language definition.
-A @racket[entry] clause is an error elsewhere.
+An @racket[entry] clause is an error elsewhere.
 
 @racket[non-terminal-name] corresponds to one of the non-terminals specified
 in this language (or the language it extends from).
@@ -235,7 +235,7 @@ in this language (or the language it extends from).
 @defidform[terminals]{
 The @racket[terminals] clause specifies one or more terminals used by the language.
 For instance in the @racket[L0] example language, the terminals clause
-specifies four terminal types variable, primitive, datum, and constant.
+specifies four terminal types: variable, primitive, datum, and constant.
 
 @racket[terminal-name] is the name of the terminal and a corresponding
 @racket[terminal-name?] predicate function exists to determine if a Racket
