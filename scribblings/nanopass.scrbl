@@ -198,10 +198,14 @@ The full syntax for @racket[define-language] is as follows:
                     (extended-terminal-caluse (+ terminal-clause ...)
                                               (- terminal-clause ...))
 
-                    (production-clause terminal-meta-var
-                                       non-terminal-meta-var
-                                       production-pattern
-                                       (keyword . production-pattern))
+                    (production-clause basic-production-clause
+                                       (=> basic-production-clause pretty-pattern)
+                                       (code:line basic-production-clause => pretty-pattern))
+                    
+                    (basic-production-clause terminal-meta-var
+                                             non-terminal-meta-var
+                                             production-pattern
+                                             (keyword . production-pattern))
 
                     (extended-production-clause (+ production-clause ...)
                                                 (- production-clause ...))
@@ -292,6 +296,27 @@ this non-terminal.
 @racket[keyword] is an identifier that must be matched exactly when parsing
 an S-expression representation, language input pattern, or language output
 template.
+
+If present, a @racket[pretty-pattern] is used by the
+generated unparser. Any occurrences of metavariables in the
+@racket[pretty-pattern] are substituted with the
+corresponding subexpressions (recursively unparsed) of the
+term to be unparsed, and the substituted pattern is the
+result of unparsing. Pattern variables bound to lists can be
+spliced using ellipses. For example,
+
+@racketblock[
+(call e e* ...) => (e e* ...)
+]
+
+might cause @racket[(call f a b c)] to unparse to
+@racket[(f a b c)]. Note that non-metavariables are left alone:
+
+@racketblock[
+(app e1 e2) => (%app e1 e2)
+]
+
+will turn @racket[(app f a)] into @racket[(%app f a)].
 
 @racket[production-pattern] is an S-expression that represents a
 pattern for language, and has the following form.
