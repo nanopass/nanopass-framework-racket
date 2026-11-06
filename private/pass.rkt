@@ -52,11 +52,30 @@
             (define-pass pass : * () -> lang  () (begin b b* ...))
             (pass)))])))
 
+;; with-output-language captures quasiquote and in-context in its body.  The
+;; captured identifiers are always created with the lexical context of the
+;; with-output-language keyword (so a macro's own quasiquote is captured).  They
+;; are also created with the context of each body form, but only when sym in
+;; that context still has its ordinary meaning (Racket's quasiquote, unbound
+;; in-context), so a use-site body passed through a macro from another module
+;; is captured, while one already inside an enclosing nanopass form keeps the
+;; quasiquote/in-context it already sees.  See issue #43.
+(begin-for-syntax
+  (define (make-captured-ids sym k ctx*)
+    (define ordinary (datum->syntax #'here sym))
+    (remove-duplicates
+     (cons (datum->syntax k sym)
+           (for*/list ([ctx (in-list ctx*)]
+                       [id (in-value (datum->syntax ctx sym))]
+                       #:when (free-identifier=? id ordinary))
+             id))
+     bound-identifier=?)))
+
 (define-syntax (with-output-language x)
   (syntax-parse x
     [(id (lang type) b b* ...)
-     #:with in-context (datum->syntax #'id 'in-context)
-     #:with quasiquote (datum->syntax #'id 'quasiquote)
+     #:with (in-context ...) (make-captured-ids 'in-context #'id (syntax->list #'(b b* ...)))
+     #:with (quasiquote ...) (make-captured-ids 'quasiquote #'id (syntax->list #'(b b* ...)))
      (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
             [olang (and olang-pair (car olang-pair))]
             [meta-parser (and olang-pair (cdr olang-pair))])
@@ -65,14 +84,16 @@
        (unless (procedure? meta-parser)
          (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
        (syntax-property
-        (quasisyntax/loc x
-          (splicing-let-syntax ([quasiquote '#,(make-quasiquote-transformer
-                                                (syntax/loc x id) (syntax/loc x type) olang
-                                                meta-parser)]
-                                [in-context '#,(make-in-context-transformer
-                                                #'id olang
-                                                meta-parser)])
-            b b* ...))
+        (with-syntax ([qq-transformer (make-quasiquote-transformer
+                                       (syntax/loc x id) (syntax/loc x type) olang
+                                       meta-parser)]
+                      [ic-transformer (make-in-context-transformer
+                                       #'id olang
+                                       meta-parser)])
+          (quasisyntax/loc x
+            (splicing-let-syntax ([quasiquote 'qq-transformer] ...
+                                  [in-context 'ic-transformer] ...)
+              b b* ...)))
         'mouse-over-tooltips
         (vector x
                 (- (syntax-position #'lang) 1)
@@ -84,7 +105,7 @@
                         (pretty-format/write
                          (language->s-expression-internal olang))))))]
       [(id lang b b* ...)
-       #:with in-context (datum->syntax #'id 'in-context)
+       #:with (in-context ...) (make-captured-ids 'in-context #'id (syntax->list #'(b b* ...)))
        (let* ([olang-pair (lookup-language 'with-output-language "unrecognized language name" #'lang)]
               [olang (and olang-pair (car olang-pair))]
               [meta-parser (and olang-pair (cdr olang-pair))])
@@ -93,10 +114,11 @@
          (unless (procedure? meta-parser)
            (raise-syntax-error 'with-output-language "missing meta parser for language" #'lang))
          (syntax-property
-          #`(splicing-let-syntax
-             ([in-context '#,(make-in-context-transformer #'id olang
-                                                          meta-parser)])
-             b b* ...)
+          (with-syntax ([ic-transformer (make-in-context-transformer #'id olang
+                                                                     meta-parser)])
+            #'(splicing-let-syntax
+               ([in-context 'ic-transformer] ...)
+               b b* ...))
         'mouse-over-tooltips
         (vector #'lang
                 (- (syntax-position #'lang) 1)
