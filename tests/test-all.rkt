@@ -8,18 +8,21 @@
          "compiler-test.rkt"
          "helpers.rkt"
          "unit-tests.rkt"
+         "with-output-language-tests.rkt"
          "../private/helpers.rkt")
 
 (printf "Running unit tests\n")
-(void
- (run-tests unit-tests)
- (run-tests ensure-correct-identifiers)
- (run-tests maybe-tests)
- (run-tests maybe-dots-tests)
- (run-tests maybe-unparse-tests)
- (run-tests language-dot-support)
- (run-tests error-messages)
- (run-tests empty-lists))
+(for ([suite (list unit-tests
+                   ensure-correct-identifiers
+                   maybe-tests
+                   maybe-dots-tests
+                   maybe-unparse-tests
+                   language-dot-support
+                   error-messages
+                   empty-lists
+                   with-output-language-capture)])
+  (printf "~a: " (rackunit-test-suite-name suite))
+  (run-tests suite))
 (printf "Compiler loaded, running all tests (quietly)\n")
 (time
   (begin
