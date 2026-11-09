@@ -9,11 +9,13 @@
          language-dot-support
          maybe-unparse-tests
          error-messages
-         empty-lists)
+         empty-lists
+         language-node-counter)
 
 (require rackunit
          "../private/helpers.rkt"
          "../private/language.rkt"
+         "../private/language-node-counter.rkt"
          "../private/pass.rkt"
          "../private/parser.rkt"
          "../private/unparser.rkt")
@@ -1143,3 +1145,47 @@
        (Lemptylists2?
         (with-output-language (Lemptylists2 Expr)
           `(,'() ... . c)))))))
+
+(define-language Lnodecount
+  (terminals
+   (symbol (x))
+   (integer (n)))
+  (Prog (p) (prog s ...))
+  (Stmt (s) e (set! x e))
+  (Expr (e)
+        x
+        (int n)
+        (app e0 e1 ...)
+        (lambda (x* ...) e)
+        (nest ((e* ...) ...))
+        (opt (maybe e))))
+
+(define-language-node-counter count-Lnodecount Lnodecount)
+
+;; regression tests for issue #42: define-language-node-counter used Chez
+;; Scheme's fold-left and compile-time environment lookup
+(define language-node-counter
+  (test-suite "language-node-counter"
+    (test-case "terminals and records with terminal fields"
+      (check-equal? (count-Lnodecount 'a) 1)
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(int 3))) 1)
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(lambda (a b) (int 1)))) 2))
+    (test-case "list fields"
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(app a b c))) 4)
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(app a))) 2)
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(nest ((a b) (c) ())))) 4))
+    (test-case "maybe fields"
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(opt #f))) 1)
+      (check-equal? (count-Lnodecount (with-output-language (Lnodecount Expr) `(opt a))) 2))
+    (test-case "nonterminal alternatives and multiple nonterminals"
+      (check-equal?
+       (count-Lnodecount
+        (with-output-language (Lnodecount Prog) `(prog (set! a (app f (int 1))) (int 2) c)))
+       7)
+      (check-equal?
+       (count-Lnodecount
+        (with-output-language (Lnodecount Expr) `(app (int 1) (int 2))))
+       3))
+    (test-case "unrecognized value"
+      (check-exn #rx"count-Lnodecount: unrecognized language record"
+                 (lambda () (count-Lnodecount "nope"))))))

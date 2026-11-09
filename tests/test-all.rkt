@@ -20,6 +20,7 @@
                    language-dot-support
                    error-messages
                    empty-lists
+                   language-node-counter
                    with-output-language-capture)])
   (printf "~a: " (rackunit-test-suite-name suite))
   (run-tests suite))
