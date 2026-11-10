@@ -251,6 +251,24 @@ terminal type in language and pass definitions.
 @racket[prettifier] is an expression that evaluates to a function of one
 argument used when the language unparser is called in ``pretty'' mode to
 produce pretty, S-expression representation.
+For example, a terminal whose values are structures can be unparsed to one of
+their fields:
+
+@racketblock[
+(struct var (name id))
+
+(define-language L
+  (terminals
+    (var (x)) => var-name)
+  (Expr (e)
+    x
+    (app e0 e1)))
+]
+
+With this definition, unparsing an @racket[app] whose fields are the
+@racket[var] structures for @racket[f] and @racket[a] produces
+@racket[(app f a)] rather than an S-expression containing the structures
+themselves.
 
 The final form is syntactic sugar for the form above it.
 When the @racket[prettifier] is omitted, no processing will be done on the
@@ -301,7 +319,8 @@ If present, a @racket[pretty-pattern] is used by the
 generated unparser. Metavariables for nonterminals in the
 @racket[pretty-pattern] are recursively unparsed to provide
 the pretty printed version, and metavariables for terminals
-are replaced by their values. Pattern variables bound to
+are replaced by their values, after applying the terminal's
+@racket[prettifier] if it has one. Pattern variables bound to
 lists can be spliced using ellipses. For example,
 
 @racketblock[
