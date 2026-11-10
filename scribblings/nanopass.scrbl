@@ -298,18 +298,17 @@ an S-expression representation, language input pattern, or language output
 template.
 
 If present, a @racket[pretty-pattern] is used by the
-generated unparser. Any occurrences of metavariables in the
-@racket[pretty-pattern] are substituted with the
-corresponding subexpressions (recursively unparsed) of the
-term to be unparsed, and the substituted pattern is the
-result of unparsing. Pattern variables bound to lists can be
-spliced using ellipses. For example,
+generated unparser. Metavariables for nonterminals in the
+@racket[pretty-pattern] are recursively unparsed to provide
+the pretty printed version, and metavariables for terminals
+are replaced by their values. Pattern variables bound to
+lists can be spliced using ellipses. For example,
 
 @racketblock[
 (call e e* ...) => (e e* ...)
 ]
 
-might cause @racket[(call f a b c)] to unparse to
+causes @racket[(call f a b c)] to unparse to
 @racket[(f a b c)]. Note that non-metavariables are left alone:
 
 @racketblock[
